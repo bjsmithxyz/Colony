@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Refactoring Test</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="loadingScreen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h2>Initializing Colony Simulation</h2>
+            <p>Testing Node Refactoring...</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>🐜 Colony Simulation - Node Refactoring Test</h1>
+            <div class="controls">
+                <button id="resetBtn" class="btn">Reset</button>
+                <button id="pauseBtn" class="btn">Pause</button>
+                <button id="helpBtn" class="btn">Help</button>
+            </div>
+        </header>
+
+        <main>
+            <div class="simulation-area">
+                <canvas id="simulationCanvas" width="800" height="600"></canvas>
+                
+                <!-- Context Menu -->
+                <div id="contextMenu" class="context-menu" style="display: none;">
+                    <div class="context-item" data-action="duplicate">Duplicate Node</div>
+                    <div class="context-item" data-action="clear-modules">Clear Modules</div>
+                    <div class="context-item" data-action="info">Node Info</div>
+                    <div class="context-item context-danger" data-action="delete">Delete Node</div>
+                </div>
+
+                <!-- Tooltip -->
+                <div id="tooltip" class="tooltip" style="display: none;">
+                    <div class="tooltip-content">
+                        <div class="tooltip-header">Node Information</div>
+                        <div class="tooltip-body">
+                            <div>Food: <span id="tooltipFood">0</span></div>
+                            <div>Individuals: <span id="tooltipIndividuals">0</span></div>
+                            <div>Position: (<span id="tooltipX">0</span>, <span id="tooltipY">0</span>)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <aside class="sidebar">
+                <!-- Statistics Panel -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>📊 Statistics</h3>
+                        <button id="statsToggle" class="panel-toggle">−</button>
+                    </div>
+                    <div id="stats" class="panel-content">
+                        <div class="stat-item">
+                            <span class="stat-label">Nodes:</span>
+                            <span id="nodeCount" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Individuals:</span>
+                            <span id="individualCount" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Total Food:</span>
+                            <span id="totalFood" class="stat-value">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Food Collected:</span>
+                            <span id="foodCollected" class="stat-value">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Node Controls -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>🎯 Node Controls</h3>
+                    </div>
+                    <div class="panel-content">
+                        <button id="spawnBtn" class="btn btn-primary" disabled>
+                            Spawn Individual (10 food)
+                        </button>
+                        <p class="help-text">Click on a node to select it, then use controls above.</p>
+                    </div>
+                </div>
+
+                <!-- Test Information -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>🔬 Refactoring Test</h3>
+                    </div>
+                    <div class="panel-content">
+                        <div class="test-info">
+                            <h4>Node Architecture:</h4>
+                            <ul>
+                                <li>✅ NodeRefactored.js (Core)</li>
+                                <li>✅ NodeGrowthManager.js</li>
+                                <li>✅ NodeRenderer.js</li>
+                                <li>✅ NodeShapeGenerator.js</li>
+                            </ul>
+                            <p><strong>Benefits:</strong> Modular, testable, maintainable code with separated concerns.</p>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🎮 How to Use</h2>
+                <span id="closeHelpModal" class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <h3>Node Refactoring Test</h3>
+                <p>This version tests the refactored Node architecture with separated concerns:</p>
+                
+                <h4>🖱️ Controls:</h4>
+                <ul>
+                    <li><strong>Left Click:</strong> Add new node</li>
+                    <li><strong>Right Click:</strong> Context menu for node actions</li>
+                    <li><strong>Click Node:</strong> Select for spawning individuals</li>
+                </ul>
+
+                <h4>🏗️ Architecture:</h4>
+                <ul>
+                    <li><strong>NodeRefactored:</strong> Core state management</li>
+                    <li><strong>NodeGrowthManager:</strong> Growth algorithms</li>
+                    <li><strong>NodeRenderer:</strong> Visual effects</li>
+                    <li><strong>NodeShapeGenerator:</strong> Organic shapes</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/nodeTestMain.js"></script>
+</body>
+</html>
