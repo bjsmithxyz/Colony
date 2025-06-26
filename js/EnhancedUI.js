@@ -31,7 +31,6 @@ class EnhancedUI {
     init() {
         this.initializeTabs();
         this.initializeDragAndDrop();
-        this.initializeModuleSearch();
         this.initializeAnimations();
         // Chart initialization is delayed until the charts tab is first opened
     }
@@ -356,38 +355,6 @@ class EnhancedUI {
             `;
             moduleList.appendChild(placeholder);
         }
-    }
-    
-    /**
-     * Initialize module search functionality
-     */
-    initializeModuleSearch() {
-        const searchInput = document.getElementById('moduleSearch');
-        if (!searchInput) return;
-        
-        searchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const moduleItems = document.querySelectorAll('.module-item');
-            
-            moduleItems.forEach(item => {
-                const moduleName = item.querySelector('.module-name').textContent.toLowerCase();
-                const category = item.closest('.module-category');
-                
-                if (moduleName.includes(searchTerm)) {
-                    item.style.display = 'block';
-                    category.style.display = 'block';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-            
-            // Hide empty categories
-            const categories = document.querySelectorAll('.module-category');
-            categories.forEach(category => {
-                const visibleModules = category.querySelectorAll('.module-item[style*="block"], .module-item:not([style])');
-                category.style.display = visibleModules.length > 0 ? 'block' : 'none';
-            });
-        });
     }
     
     /**
