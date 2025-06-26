@@ -7,11 +7,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!canvas) {
             throw new Error('Canvas element with id "simulationCanvas" not found');
         }
-        
+
         console.log('Initializing simulation...');
         const simulation = new Simulation(canvas);
-        simulation.start();
-        console.log('Simulation started successfully');
+        
+        // Show loading screen initially
+        simulation.showLoadingScreen();
+        
+        // Hide loading screen after a short delay to allow initialization
+        setTimeout(() => {
+            simulation.hideLoadingScreen();
+            simulation.start();
+            console.log('Simulation started successfully');
+        }, 1500);
         
         // Make performance testing available globally
         window.testPerformance = (nodeCount = 10) => {
@@ -24,5 +32,10 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) {
         console.error('Failed to initialize simulation:', error);
         console.error('Stack trace:', error.stack);
+        // Hide loading screen on error
+        const loadingScreen = document.getElementById('loadingScreen');
+        if (loadingScreen) {
+            loadingScreen.classList.add('hidden');
+        }
     }
 });

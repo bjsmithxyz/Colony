@@ -8,7 +8,6 @@ import { SpatialGrid } from './SpatialGrid.js';
 import { ObjectPool } from './ObjectPool.js';
 import { DirtyRectManager } from './DirtyRectManager.js';
 import { LevelOfDetail } from './LevelOfDetail.js';
-import EnhancedUI from './EnhancedUI.js';
 import { VisionModule } from './modules/VisionModule.js';
 import { SpeedModule } from './modules/SpeedModule.js';
 import { EfficiencyModule } from './modules/EfficiencyModule.js';
