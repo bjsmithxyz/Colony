@@ -37,7 +37,7 @@ export class SimulationRenderer {
         // Clear dirty regions for future optimization
         this.simulation.dirtyRectManager.clear();
         
-        this.simulation.performanceMetrics.renderTime = performance.now() - renderStart;
+        this.simulation.performanceMonitor.performanceMetrics.renderTime = performance.now() - renderStart;
     }
     
     renderFull() {
