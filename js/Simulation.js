@@ -7,6 +7,7 @@ import { ModuleManager } from './ModuleManager.js';
 import { SpatialGrid } from './SpatialGrid.js';
 import { ObjectPool } from './ObjectPool.js';
 import { DirtyRectManager } from './DirtyRectManager.js';
+import { LevelOfDetail } from './LevelOfDetail.js';
 import { VisionModule } from './modules/VisionModule.js';
 import { SpeedModule } from './modules/SpeedModule.js';
 import { EfficiencyModule } from './modules/EfficiencyModule.js';
@@ -98,6 +99,10 @@ export class Simulation {
         this.dirtyRectManager = new DirtyRectManager(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 64);
         this.lastRenderTime = 0;
         
+        // Level of Detail system for performance
+        this.levelOfDetail = new LevelOfDetail(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT);
+        this.lodEnabled = true; // Can be toggled for testing
+        
         this.setupEventListeners();
         this.generateFoodSources();
         this.initializeModules();
@@ -176,6 +181,13 @@ export class Simulation {
         speedSlider.addEventListener('input', (e) => {
             this.simulationSpeed = parseFloat(e.target.value);
             speedDisplay.textContent = `${this.simulationSpeed.toFixed(1)}x`;
+        });
+        
+        // LOD toggle
+        const lodToggle = document.getElementById('lodToggle');
+        lodToggle.addEventListener('change', (e) => {
+            this.lodEnabled = e.target.checked;
+            console.log(`LOD ${this.lodEnabled ? 'enabled' : 'disabled'}`);
         });
         
         // Context menu actions
@@ -413,16 +425,24 @@ export class Simulation {
         
         this.trailSystem.render(this.ctx);
         
-        for (let i = 0; i < this.foodSources.length; i++) {
-            this.foodSources[i].render(this.ctx);
-        }
-        
-        for (let i = 0; i < this.nodes.length; i++) {
-            this.nodes[i].render(this.ctx);
-        }
-        
-        for (let i = 0; i < this.individuals.length; i++) {
-            this.individuals[i].render(this.ctx);
+        // Render with LOD system if enabled
+        if (this.lodEnabled) {
+            this.levelOfDetail.renderFoodSources(this.ctx, this.foodSources);
+            this.levelOfDetail.renderNodes(this.ctx, this.nodes);
+            this.levelOfDetail.renderIndividuals(this.ctx, this.individuals);
+        } else {
+            // Fallback to original rendering
+            for (let i = 0; i < this.foodSources.length; i++) {
+                this.foodSources[i].render(this.ctx);
+            }
+            
+            for (let i = 0; i < this.nodes.length; i++) {
+                this.nodes[i].render(this.ctx);
+            }
+            
+            for (let i = 0; i < this.individuals.length; i++) {
+                this.individuals[i].render(this.ctx);
+            }
         }
     }
     
@@ -1045,6 +1065,18 @@ Modules: ${moduleNames}`);
         console.log(`Individuals: ${this.individuals.length}`);
         console.log(`Total Pixels: ${totalPixels}`);
         console.log(`Estimated Memory: ${estimatedMemory.toFixed(1)}KB`);
+        
+        // LOD Statistics
+        if (this.lodEnabled) {
+            const lodStats = this.levelOfDetail.getStats();
+            console.log(`LOD Enabled: High=${lodStats.highLOD}, Medium=${lodStats.mediumLOD}, Low=${lodStats.lowLOD}, Culled=${lodStats.culled}`);
+            console.log(`Culling Ratio: ${lodStats.cullingRatio}`);
+            console.log(`LOD Distances: High=${lodStats.lodDistances.HIGH}, Medium=${lodStats.lodDistances.MEDIUM}, Low=${lodStats.lodDistances.LOW}`);
+            
+            // Automatically adjust LOD distances based on performance
+            this.levelOfDetail.adjustLODDistances({ fps: this.fps });
+        }
+        
         console.log('==========================');
         
         // Performance warnings

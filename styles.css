@@ -96,6 +96,26 @@ body {
     text-align: center;
 }
 
+.performance-controls {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #333;
+}
+
+.performance-controls label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #bbb;
+    cursor: pointer;
+}
+
+.performance-controls input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
 .stats-container {
     background-color: #222;
     border-radius: 6px;

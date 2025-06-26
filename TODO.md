@@ -9,7 +9,7 @@
 - [x] Add object pooling for individuals to reduce garbage collection (ObjectPool.js)
 - [x] Optimize rendering with dirty rectangles and batching (DirtyRectManager.js)
 - [x] Add performance monitoring and FPS counter (implemented in Simulation.js)
-- [ ] Implement level-of-detail (LOD) for distant entities
+- [x] Implement level-of-detail (LOD) for distant entities (LevelOfDetail.js with adaptive distances)
 - [x] Optimize trail system memory usage (TrailSystem.js implemented)
 - [x] Profile and optimize hot code paths (performance logging implemented)
 
