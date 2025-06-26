@@ -427,6 +427,45 @@ body {
     display: block;
 }
 
+/* ===== MODULE TABS ===== */
+.module-tabs {
+    display: flex;
+    margin-bottom: 21px; /* Added 5px buffer from default 16px */
+    border-bottom: 1px solid rgba(79, 172, 254, 0.2);
+}
+
+.module-tab {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 2px solid transparent;
+}
+
+.module-tab:hover {
+    color: #e2e8f0;
+    background: rgba(79, 172, 254, 0.05);
+}
+
+.module-tab.active {
+    color: #4facfe;
+    border-bottom-color: #4facfe;
+}
+
+.module-tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.module-tab-content.active {
+    display: block;
+}
+
 /* ===== CONTROL GROUP ===== */
 .control-group {
     margin-bottom: 20px;

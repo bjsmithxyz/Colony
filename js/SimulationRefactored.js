@@ -1,6 +1,6 @@
 import { CONFIG } from './config.js';
-import { Node } from './Node.js';
-import { Individual } from './Individual.js';
+import { Node } from './NodeRefactored.js';
+import { Individual } from './IndividualRefactored.js';
 import { FoodSource } from './FoodSource.js';
 import { TrailSystem } from './TrailSystem.js';
 import { ModuleManager } from './ModuleManager.js';

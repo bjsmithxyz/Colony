@@ -3,21 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Colony - Refactored</title>
+    <title>Colony</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
-    <script src="js/EnhancedUIRefactored.js"></script>
+    <script src="js/EnhancedUI.js"></script>
 </head>
 <body>
     <!-- Loading Screen -->
     <div id="loadingScreen" class="loading-screen">
         <div class="loading-content">
             <div class="loading-spinner"></div>
-            <h2>Initialising Colony (Refactored)</h2>
-            <p>Loading optimized modular architecture...</p>
+            <h2>Initialising Colony</h2>
+            <p>Preparing modules and systems...</p>
             <div class="loading-progress">
                 <div class="loading-progress-bar" id="loadingProgressBar"></div>
             </div>
@@ -30,7 +30,7 @@
             <div class="header-content">
                 <h1 class="app-title">
                     <span class="title-icon">🏭</span>
-                    Colony (Refactored)
+                    Colony
                 </h1>
                 <div class="header-actions">
                     <button class="header-btn" id="helpBtn" title="Help & Tutorial">
@@ -108,10 +108,17 @@
                                 <!-- Charts Tab -->
                                 <div class="stats-tab-content" id="charts">
                                     <div class="chart-container">
-                                        <canvas id="populationChart"></canvas>
+                                        <canvas id="populationChart" width="280" height="180"></canvas>
                                     </div>
-                                    <div class="chart-container">
-                                        <canvas id="foodChart"></canvas>
+                                    <div class="chart-controls">
+                                        <label class="chart-control-label">
+                                            <input type="checkbox" id="showPopulation" checked>
+                                            <span class="chart-legend population">Population</span>
+                                        </label>
+                                        <label class="chart-control-label">
+                                            <input type="checkbox" id="showFood" checked>
+                                            <span class="chart-legend food">Food</span>
+                                        </label>
                                     </div>
                                 </div>
                                 
@@ -119,11 +126,11 @@
                                 <div class="stats-tab-content" id="performance">
                                     <div class="performance-grid">
                                         <div class="performance-item">
-                                            <div class="performance-value" id="currentFPS">--</div>
-                                            <div class="performance-label">Current FPS</div>
+                                            <div class="performance-value" id="currentFPS">60</div>
+                                            <div class="performance-label">FPS</div>
                                         </div>
                                         <div class="performance-item">
-                                            <div class="performance-value" id="avgFPS">--</div>
+                                            <div class="performance-value" id="avgFPS">60</div>
                                             <div class="performance-label">Avg FPS</div>
                                         </div>
                                         <div class="performance-item">
@@ -298,17 +305,11 @@
     <div id="helpModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Guide (Refactored Version)</h2>
+                <h2>Guide</h2>
                 <button class="modal-close" id="closeHelpModal">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="help-content">
-                    <h3>Refactored Architecture</h3>
-                    <ul>
-                        <li><strong>Modular Design:</strong> Code is now split into focused, maintainable components</li>
-                        <li><strong>Better Performance:</strong> Optimized rendering and AI systems</li>
-                        <li><strong>Enhanced Testing:</strong> Each component can be tested independently</li>
-                    </ul>
                     <h3>Getting Started</h3>
                     <ul>
                         <li><strong>Place Nodes:</strong> Click anywhere on the canvas to create nodes</li>

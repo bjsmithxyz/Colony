@@ -1,38 +1,43 @@
 import { Simulation } from './Simulation.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize simulation when DOM is loaded
+document.addEventListener('DOMContentLoaded', async () => {
     try {
-        const canvas = document.getElementById('simulationCanvas');
+        console.log('Initializing Colony Simulation...');
         
-        if (!canvas) {
-            throw new Error('Canvas element with id "simulationCanvas" not found');
+        // Show loading screen
+        if (window.enhancedUI) {
+            window.enhancedUI.showLoadingScreen();
         }
-
-        console.log('Initializing simulation...');
+        
+        // Get canvas element
+        const canvas = document.getElementById('simulationCanvas');
+        if (!canvas) {
+            throw new Error('Canvas element not found');
+        }
+        
+        // Create and start simulation
         const simulation = new Simulation(canvas);
         
-        // Show loading screen initially
-        simulation.showLoadingScreen();
+        // Store global reference for debugging
+        window.simulation = simulation;
         
-        // Hide loading screen after a short delay to allow initialization
+        // Start the simulation
+        simulation.start();
+        
+        console.log('Colony Simulation initialized successfully');
+        
+        // Hide loading screen after a short delay
         setTimeout(() => {
-            simulation.hideLoadingScreen();
-            simulation.start();
-            console.log('Simulation started successfully');
+            if (window.enhancedUI) {
+                window.enhancedUI.hideLoadingScreen();
+            }
         }, 1500);
-        
-        // Make performance testing available globally
-        window.testPerformance = (nodeCount = 10) => {
-            simulation.performanceStressTest(nodeCount);
-        };
-        
-        console.log('Performance testing available: testPerformance(nodeCount)');
-        console.log('Example: testPerformance(15) for 15 nodes stress test');
         
     } catch (error) {
         console.error('Failed to initialize simulation:', error);
-        console.error('Stack trace:', error.stack);
-        // Hide loading screen on error
+        
+        // Hide loading screen and show error
         const loadingScreen = document.getElementById('loadingScreen');
         if (loadingScreen) {
             loadingScreen.classList.add('hidden');
