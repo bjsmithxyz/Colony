@@ -101,7 +101,7 @@ export class Simulation {
         
         // Level of Detail system for performance
         this.levelOfDetail = new LevelOfDetail(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT);
-        this.lodEnabled = true; // Can be toggled for testing
+        this.lodEnabled = false; // Default to off
         
         this.setupEventListeners();
         this.generateFoodSources();
@@ -172,7 +172,15 @@ export class Simulation {
         const pausePlayBtn = document.getElementById('pausePlayBtn');
         pausePlayBtn.addEventListener('click', () => {
             this.togglePause();
-            pausePlayBtn.textContent = this.isPaused ? '▶️ Play' : '⏸️ Pause';
+            const icon = pausePlayBtn.querySelector('.btn-icon');
+            const label = pausePlayBtn.querySelector('.btn-label');
+            if (this.isPaused) {
+                icon.textContent = '▶️';
+                if (label) label.textContent = 'Play';
+            } else {
+                icon.textContent = '⏸️';
+                if (label) label.textContent = 'Pause';
+            }
         });
         
         // Speed control
@@ -313,7 +321,7 @@ export class Simulation {
     }
 
     generateFoodSources() {
-        const numSources = 5 + Math.floor(Math.random() * 5);
+        const numSources = 10 + Math.floor(Math.random() * 10); // Doubled from 5 + 0-4 to 10 + 0-9
         
         for (let i = 0; i < numSources; i++) {
             const x = Math.floor(Math.random() * (CONFIG.MAP.WIDTH - 40)) + 20;
@@ -555,28 +563,13 @@ export class Simulation {
         // Food collected
         document.getElementById('foodCollected').textContent = this.totalFoodCollected;
         
-        // Average efficiency (food collected per individual spawned)
-        const efficiency = this.totalIndividualsSpawned > 0 
-            ? Math.round((this.totalFoodCollected / this.totalIndividualsSpawned) * 100) 
-            : 0;
-        document.getElementById('avgEfficiency').textContent = `${efficiency}%`;
-        
-        // Active modules count
-        let activeModuleCount = 0;
-        this.nodes.forEach(node => {
-            activeModuleCount += this.moduleManager.getModulesForTarget(node).length;
-        });
-        document.getElementById('activeModules').textContent = activeModuleCount;
-        
         // Update enhanced UI charts if available
         if (window.enhancedUI) {
             const statsData = {
                 nodeCount: this.nodes.length,
                 individualCount: this.individuals.length,
                 totalFood: totalFood,
-                foodCollected: this.totalFoodCollected,
-                efficiency: efficiency,
-                activeModules: activeModuleCount
+                foodCollected: this.totalFoodCollected
             };
             window.enhancedUI.updateChartData(statsData);
         }
@@ -1103,15 +1096,7 @@ Modules: ${moduleNames}`);
             }
         }
         
-        // Show pause indicator on canvas
-        if (this.isPaused) {
-            this.ctx.save();
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            this.ctx.font = 'bold 24px monospace';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText('PAUSED', CONFIG.MAP.WIDTH / 2, 30);
-            this.ctx.restore();
-        }
+        // Note: Removed pause indicator from canvas - it's now only shown in the UI button
     }
     
     logPerformanceMetrics() {

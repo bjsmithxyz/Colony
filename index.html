@@ -47,15 +47,16 @@
             <!-- Simulation Canvas -->
             <div class="canvas-container">
                 <canvas id="simulationCanvas"></canvas>
-                <div class="canvas-overlay">
-                    <div class="quick-actions">
-                        <button class="quick-action-btn" id="pausePlayBtn" title="Pause/Play">
-                            <span class="btn-icon">⏸️</span>
-                        </button>
-                        <button class="quick-action-btn" id="resetBtn" title="Reset Simulation">
-                            <span class="btn-icon">🔄</span>
-                        </button>
-                    </div>
+                <div class="canvas-overlay">                <div class="quick-actions">
+                    <button class="quick-action-btn" id="pausePlayBtn" title="Pause/Play">
+                        <span class="btn-icon">⏸️</span>
+                        <span class="btn-label">Pause</span>
+                    </button>
+                    <button class="quick-action-btn" id="resetBtn" title="Reset Simulation">
+                        <span class="btn-icon">🔄</span>
+                        <span class="btn-label">Reset</span>
+                    </button>
+                </div>
                     <div class="performance-indicator">
                         <span id="fpsIndicator" class="fps-badge">60 FPS</span>
                     </div>
@@ -65,20 +66,6 @@
             <!-- Control Panel -->
             <aside class="control-panel">
                 <div class="panel-content">
-                    <!-- Instructions Card -->
-                    <div class="control-card instructions-card">
-                        <div class="card-header">
-                            <h3 class="card-title">
-                                <span class="card-icon">📋</span>
-                                Instructions
-                            </h3>
-                        </div>
-                        <div class="card-content">
-                            <p class="instruction-text">Click on the canvas to place colony nodes</p>
-                            <p class="instruction-text">Right-click nodes for actions</p>
-                        </div>
-                    </div>
-
                     <!-- Statistics Card -->
                     <div class="control-card stats-card">
                         <div class="card-header collapsible" id="statsToggle">
@@ -114,14 +101,6 @@
                                         <div class="stat-item">
                                             <div class="stat-value" id="foodCollected">0</div>
                                             <div class="stat-label">Collected</div>
-                                        </div>
-                                        <div class="stat-item">
-                                            <div class="stat-value" id="avgEfficiency">0%</div>
-                                            <div class="stat-label">Efficiency</div>
-                                        </div>
-                                        <div class="stat-item">
-                                            <div class="stat-value" id="activeModules">0</div>
-                                            <div class="stat-label">Modules</div>
                                         </div>
                                     </div>
                                 </div>
@@ -188,7 +167,7 @@
                                 <label class="control-label">Performance</label>
                                 <div class="checkbox-group">
                                     <label class="checkbox-label">
-                                        <input type="checkbox" id="lodToggle" checked>
+                                        <input type="checkbox" id="lodToggle">
                                         <span class="checkbox-custom"></span>
                                         Level of Detail (LOD)
                                     </label>

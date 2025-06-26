@@ -193,7 +193,7 @@ body {
 
 .quick-action-btn {
     width: 44px;
-    height: 44px;
+    height: 60px; /* Increased height to accommodate label */
     border-radius: 10px;
     border: none;
     background: rgba(15, 15, 35, 0.9);
@@ -201,11 +201,28 @@ body {
     color: #4facfe;
     cursor: pointer;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 2px;
+    padding: 4px;
     font-size: 18px;
     transition: all 0.2s ease;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.quick-action-btn .btn-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.quick-action-btn .btn-label {
+    font-size: 9px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1;
+    color: #94a3b8;
 }
 
 .quick-action-btn:hover {
@@ -232,7 +249,7 @@ body {
 
 /* ===== CONTROL PANEL ===== */
 .control-panel {
-    width: 320px;
+    width: 384px; /* Increased by 20% from 320px */
     background: rgba(15, 15, 35, 0.95);
     backdrop-filter: blur(10px);
     border-left: 1px solid rgba(79, 172, 254, 0.2);
