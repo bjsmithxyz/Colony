@@ -96,10 +96,10 @@
 ## Refactoring & Code Quality (Completed)
 
 ### Major Code Refactoring ✅
-- [x] **Simulation.js Refactoring**: Split 1268-line monolith into focused managers (SimulationRefactored, EventHandler, Renderer, ContextMenuManager, PerformanceMonitor)
+- [x] **Simulation.js Refactoring**: Split 1268-line monolith into focused managers (EventHandler, Renderer, ContextMenuManager, PerformanceMonitor)
 - [x] **EnhancedUI.js Refactoring**: Separated UI concerns into specialized managers (UITabManager, ChartManager, ModuleDragDropManager)  
-- [x] **Individual.js Refactoring**: Split AI behavior from state management (IndividualRefactored, IndividualAI)
-- [x] **Node.js Refactoring**: Modularized growth, rendering, and shape generation (NodeRefactored, NodeGrowthManager, NodeRenderer, NodeShapeGenerator)
+- [x] **Individual.js Refactoring**: Split AI behavior from state management (IndividualAI)
+- [x] **Node.js Refactoring**: Modularized growth, rendering, and shape generation (NodeGrowthManager, NodeRenderer, NodeShapeGenerator)
 
 ### Architecture Improvements ✅
 - [x] **Single Responsibility Principle**: Each class has a clear, focused responsibility

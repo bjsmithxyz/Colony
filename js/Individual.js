@@ -2,7 +2,7 @@ import { CONFIG } from './config.js';
 import { IndividualAI } from './IndividualAI.js';
 
 /**
- * Individual class - refactored to separate concerns
+ * Individual class - modular architecture with separated concerns
  * Handles state and rendering, delegates AI to IndividualAI
  */
 export class Individual {

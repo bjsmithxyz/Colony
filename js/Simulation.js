@@ -28,7 +28,7 @@ import { PriorityModule } from './modules/PriorityModule.js';
 import { ClusterModule } from './modules/ClusterModule.js';
 
 /**
- * Main Simulation class - refactored to be much more focused
+ * Main Simulation class - modular and focused architecture
  * Delegates responsibilities to specialized managers
  */
 export class Simulation {

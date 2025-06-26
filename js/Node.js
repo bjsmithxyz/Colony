@@ -4,7 +4,7 @@ import { NodeRenderer } from './NodeRenderer.js';
 import { NodeShapeGenerator } from './NodeShapeGenerator.js';
 
 /**
- * Node class - refactored to separate concerns
+ * Node class - modular architecture with separated concerns
  * Handles core state and delegates specialized responsibilities to managers
  */
 export class Node {
