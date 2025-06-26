@@ -266,4 +266,24 @@ export class LevelOfDetail {
             lodDistances: { ...this.LOD_DISTANCES }
         };
     }
+    
+    /**
+     * Get current overall quality level based on LOD usage
+     */
+    getCurrentQuality() {
+        if (this.stats.totalEntities === 0) {
+            return 'High';
+        }
+        
+        const highRatio = this.stats.highLOD / this.stats.totalEntities;
+        const mediumRatio = this.stats.mediumLOD / this.stats.totalEntities;
+        
+        if (highRatio > 0.7) {
+            return 'High';
+        } else if (highRatio + mediumRatio > 0.5) {
+            return 'Medium';
+        } else {
+            return 'Low';
+        }
+    }
 }
