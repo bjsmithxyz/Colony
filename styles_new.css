@@ -367,50 +367,7 @@ body {
     letter-spacing: 0.5px;
 }
 
-/* ===== ENHANCED STATISTICS TABS ===== */
-.stats-tabs {
-    display: flex;
-    margin-bottom: 16px;
-    border-bottom: 1px solid rgba(79, 172, 254, 0.2);
-}
-
-.stats-tab {
-    flex: 1;
-    padding: 8px 12px;
-    border: none;
-    background: transparent;
-    color: #94a3b8;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border-bottom: 2px solid transparent;
-}
-
-.stats-tab:hover {
-    color: #e2e8f0;
-    background: rgba(79, 172, 254, 0.05);
-}
-
-.stats-tab.active {
-    color: #4facfe;
-    border-bottom-color: #4facfe;
-}
-
-.stats-content {
-    min-height: 200px;
-}
-
-.stats-tab-content {
-    display: none;
-    animation: fadeIn 0.3s ease;
-}
-
-.stats-tab-content.active {
-    display: block;
-}
-
-/* ===== CONTROL GROUP ===== */
+/* ===== CONTROLS ===== */
 .control-group {
     margin-bottom: 20px;
 }
@@ -865,20 +822,6 @@ body {
     }
 }
 
-@media (max-width: 1200px) {
-    .stats-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-    
-    .performance-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .module-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
 /* ===== ANIMATIONS ===== */
 @keyframes fadeIn {
     from {
@@ -908,46 +851,6 @@ body {
     animation: slideIn 0.3s ease-out;
 }
 
-/* ===== ENHANCED ANIMATIONS ===== */
-@keyframes moduleSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes moduleSlideOut {
-    from {
-        opacity: 1;
-        transform: translateY(0);
-    }
-    to {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-}
-
-@keyframes pulseGlow {
-    0%, 100% {
-        box-shadow: 0 0 5px rgba(79, 172, 254, 0.3);
-    }
-    50% {
-        box-shadow: 0 0 20px rgba(79, 172, 254, 0.6);
-    }
-}
-
-.module-item.new-module {
-    animation: moduleSlideIn 0.3s ease;
-}
-
-.module-item.removing-module {
-    animation: moduleSlideOut 0.3s ease forwards;
-}
-
 /* ===== SCROLLBAR STYLING ===== */
 .control-panel::-webkit-scrollbar {
     width: 6px;
@@ -964,22 +867,4 @@ body {
 
 .control-panel::-webkit-scrollbar-thumb:hover {
     background: rgba(79, 172, 254, 0.6);
-}
-
-.module-library::-webkit-scrollbar {
-    width: 4px;
-}
-
-.module-library::-webkit-scrollbar-track {
-    background: rgba(79, 172, 254, 0.05);
-    border-radius: 2px;
-}
-
-.module-library::-webkit-scrollbar-thumb {
-    background: rgba(79, 172, 254, 0.3);
-    border-radius: 2px;
-}
-
-.module-library::-webkit-scrollbar-thumb:hover {
-    background: rgba(79, 172, 254, 0.5);
 }

@@ -8,6 +8,7 @@ import { SpatialGrid } from './SpatialGrid.js';
 import { ObjectPool } from './ObjectPool.js';
 import { DirtyRectManager } from './DirtyRectManager.js';
 import { LevelOfDetail } from './LevelOfDetail.js';
+import EnhancedUI from './EnhancedUI.js';
 import { VisionModule } from './modules/VisionModule.js';
 import { SpeedModule } from './modules/SpeedModule.js';
 import { EfficiencyModule } from './modules/EfficiencyModule.js';
@@ -189,6 +190,33 @@ export class Simulation {
             this.lodEnabled = e.target.checked;
             console.log(`LOD ${this.lodEnabled ? 'enabled' : 'disabled'}`);
         });
+
+        // Help modal
+        const helpBtn = document.getElementById('helpBtn');
+        const helpModal = document.getElementById('helpModal');
+        const closeHelpModal = document.getElementById('closeHelpModal');
+        
+        helpBtn.addEventListener('click', () => {
+            helpModal.style.display = 'flex';
+        });
+        
+        closeHelpModal.addEventListener('click', () => {
+            helpModal.style.display = 'none';
+        });
+        
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) {
+                helpModal.style.display = 'none';
+            }
+        });
+
+        // Reset button
+        const resetBtn = document.getElementById('resetBtn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                this.resetSimulation();
+            });
+        }
         
         // Context menu actions
         this.contextMenu.addEventListener('click', (e) => {
@@ -246,6 +274,15 @@ export class Simulation {
                     this.updateStats();
                 }
             }
+        });
+        
+        // Enhanced UI module events
+        document.addEventListener('moduleAdded', (e) => {
+            this.handleModuleAdded(e.detail);
+        });
+        
+        document.addEventListener('moduleRemoved', (e) => {
+            this.handleModuleRemoved(e.detail);
         });
         
     }
@@ -509,6 +546,7 @@ export class Simulation {
     }
 
     updateStats() {
+        // Update basic statistics displays
         document.getElementById('nodeCount').textContent = this.nodes.length;
         document.getElementById('individualCount').textContent = this.individuals.length;
         
@@ -530,6 +568,19 @@ export class Simulation {
             activeModuleCount += this.moduleManager.getModulesForTarget(node).length;
         });
         document.getElementById('activeModules').textContent = activeModuleCount;
+        
+        // Update enhanced UI charts if available
+        if (window.enhancedUI) {
+            const statsData = {
+                nodeCount: this.nodes.length,
+                individualCount: this.individuals.length,
+                totalFood: totalFood,
+                foodCollected: this.totalFoodCollected,
+                efficiency: efficiency,
+                activeModules: activeModuleCount
+            };
+            window.enhancedUI.updateChartData(statsData);
+        }
         
         // Update node controls if a node is selected
         if (this.selectedTarget) {
@@ -1017,27 +1068,51 @@ Modules: ${moduleNames}`);
             this.fps = Math.round((this.fpsFrameCount * 1000) / elapsed);
             this.fpsFrameCount = 0;
             this.lastFpsUpdate = now;
+            
+            // Update average FPS
+            if (!this.avgFpsHistory) this.avgFpsHistory = [];
+            this.avgFpsHistory.push(this.fps);
+            if (this.avgFpsHistory.length > 10) this.avgFpsHistory.shift();
+            this.avgFps = Math.round(this.avgFpsHistory.reduce((a, b) => a + b, 0) / this.avgFpsHistory.length);
+            
+            // Update FPS indicator in UI
+            const fpsIndicator = document.getElementById('fpsIndicator');
+            if (fpsIndicator) {
+                fpsIndicator.textContent = `${this.fps} FPS`;
+                // Update color based on performance
+                if (this.fps < 30) {
+                    fpsIndicator.style.color = '#ef4444';
+                    fpsIndicator.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                } else if (this.fps < 50) {
+                    fpsIndicator.style.color = '#f59e0b';
+                    fpsIndicator.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                } else {
+                    fpsIndicator.style.color = '#10b981';
+                    fpsIndicator.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                }
+            }
+            
+            // Update enhanced UI performance metrics
+            if (window.enhancedUI) {
+                const performanceMetrics = {
+                    currentFPS: this.fps,
+                    avgFPS: this.avgFps,
+                    lodLevel: this.lod ? this.lod.getCurrentQuality() : 'High',
+                    memoryUsage: performance.memory ? performance.memory.usedJSHeapSize : null
+                };
+                window.enhancedUI.updatePerformanceMetrics(performanceMetrics);
+            }
         }
         
-        // Render FPS counter
-        this.ctx.save();
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        this.ctx.fillRect(CONFIG.MAP.WIDTH - 80, 10, 70, 25);
-        
-        this.ctx.fillStyle = this.fps < 30 ? '#ff4444' : this.fps < 50 ? '#ffaa00' : '#44ff44';
-        this.ctx.font = 'bold 14px monospace';
-        this.ctx.textAlign = 'right';
-        this.ctx.fillText(`FPS: ${this.fps}`, CONFIG.MAP.WIDTH - 15, 28);
-        
-        // Show pause indicator
+        // Show pause indicator on canvas
         if (this.isPaused) {
+            this.ctx.save();
             this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
             this.ctx.font = 'bold 24px monospace';
             this.ctx.textAlign = 'center';
             this.ctx.fillText('PAUSED', CONFIG.MAP.WIDTH / 2, 30);
+            this.ctx.restore();
         }
-        
-        this.ctx.restore();
     }
     
     logPerformanceMetrics() {
@@ -1137,5 +1212,146 @@ Modules: ${moduleNames}`);
         };
         
         gameLoop();
+    }
+
+    // Loading screen management
+    showLoadingScreen() {
+        const loadingScreen = document.getElementById('loadingScreen');
+        const progressBar = document.getElementById('loadingProgressBar');
+        
+        if (loadingScreen) {
+            loadingScreen.classList.remove('hidden');
+            
+            // Simulate loading progress
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 20;
+                progressBar.style.width = Math.min(progress, 100) + '%';
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        loadingScreen.classList.add('hidden');
+                    }, 500);
+                }
+            }, 100);
+        }
+    }
+
+    hideLoadingScreen() {
+        const loadingScreen = document.getElementById('loadingScreen');
+        if (loadingScreen) {
+            loadingScreen.classList.add('hidden');
+        }
+    }
+
+    resetSimulation() {
+        // Confirm reset
+        if (confirm('Are you sure you want to reset the simulation? This will clear all nodes and data.')) {
+            // Clear entities
+            this.nodes = [];
+            this.individuals = [];
+            this.foodSources = [];
+            
+            // Reset statistics
+            this.totalFoodCollected = 0;
+            this.totalIndividualsSpawned = 0;
+            
+            // Reset selected target
+            this.selectedTarget = null;
+            
+            // Regenerate food sources
+            this.generateFoodSources();
+            
+            // Update UI
+            this.updateStats();
+            this.updateNodeControls();
+            
+            console.log('Simulation reset');
+        }
+    }
+    
+    /**
+     * Handle module added event from enhanced UI
+     */
+    handleModuleAdded(moduleData) {
+        if (!this.selectedTarget) {
+            console.warn('No target selected for module addition');
+            return;
+        }
+        
+        const moduleType = moduleData.type;
+        const moduleClass = this.getModuleClass(moduleType);
+        
+        if (moduleClass) {
+            try {
+                // Add visual effect
+                this.addVisualEffect({
+                    type: 'moduleActivation',
+                    x: this.selectedTarget.x,
+                    y: this.selectedTarget.y,
+                    color: '#4facfe',
+                    duration: 1000
+                });
+                
+                // Apply module to selected target
+                this.moduleManager.addModule(this.selectedTarget, moduleClass);
+                this.updateStats();
+                this.updateNodeControls();
+                
+                console.log(`Module ${moduleType} added to node at (${this.selectedTarget.x}, ${this.selectedTarget.y})`);
+            } catch (error) {
+                console.error(`Failed to add module ${moduleType}:`, error);
+            }
+        } else {
+            console.warn(`Unknown module type: ${moduleType}`);
+        }
+    }
+    
+    /**
+     * Handle module removed event from enhanced UI
+     */
+    handleModuleRemoved(moduleData) {
+        if (!this.selectedTarget) {
+            console.warn('No target selected for module removal');
+            return;
+        }
+        
+        const moduleType = moduleData.type;
+        const moduleClass = this.getModuleClass(moduleType);
+        
+        if (moduleClass) {
+            try {
+                this.moduleManager.removeModule(this.selectedTarget, moduleClass);
+                this.updateStats();
+                this.updateNodeControls();
+                
+                console.log(`Module ${moduleType} removed from node at (${this.selectedTarget.x}, ${this.selectedTarget.y})`);
+            } catch (error) {
+                console.error(`Failed to remove module ${moduleType}:`, error);
+            }
+        }
+    }
+    
+    /**
+     * Get module class by type string
+     */
+    getModuleClass(moduleType) {
+        const moduleMap = {
+            'speed': SpeedModule,
+            'efficiency': EfficiencyModule,
+            'vision': VisionModule,
+            'communication': CommunicationModule,
+            'specialization': SpecializationModule,
+            'capacity': CapacityModule,
+            'trail': TrailModule,
+            'beacon': BeaconModule,
+            'cluster': ClusterModule,
+            'color': RedThemeModule, // Default color module
+            'priority': PriorityModule,
+            'size': SizeModule
+        };
+        
+        return moduleMap[moduleType] || null;
     }
 }
