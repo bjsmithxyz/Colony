@@ -106,12 +106,12 @@ export class Individual {
     updateEnergy() {
         // Simple energy system - individuals die if they don't find food
         if (this.carrying === 0) {
-            this.energyLevel = (this.energyLevel || 1000) - this.energyConsumption;
+            this.energyLevel = (this.energyLevel || 3000) - this.energyConsumption;
             if (this.energyLevel <= 0) {
                 this.isDead = true;
             }
         } else {
-            this.energyLevel = 1000; // Reset energy when carrying food
+            this.energyLevel = 3000; // Reset energy when carrying food
         }
     }
 

@@ -2,6 +2,8 @@ import { CONFIG } from './config.js';
 
 export class FoodSource {
     constructor(x, y) {
+        this.x = x;
+        this.y = y;
         this.centerX = x;
         this.centerY = y;
         this.pixels = [];
@@ -11,6 +13,7 @@ export class FoodSource {
         // Random starting food amount (20-500)
         this.maxFood = Math.floor(Math.random() * (500 - 20 + 1)) + 20;
         this.remainingFood = this.maxFood;
+        this.amount = this.remainingFood; // Add amount property for compatibility
         this.maxPixels = Math.min(this.maxFood, 100); // Cap visual size for performance
         
         this.revealAnimation = 0;
@@ -58,11 +61,22 @@ export class FoodSource {
 
     deplete(amount) {
         this.remainingFood -= amount;
+        this.amount = this.remainingFood; // Keep amount in sync
         if (this.remainingFood <= 0) {
             this.depleted = true;
             this.remainingFood = 0;
+            this.amount = 0;
         }
         return Math.min(amount, this.remainingFood + amount);
+    }
+    
+    collect(requestedAmount) {
+        const collected = Math.min(requestedAmount, this.remainingFood);
+        this.deplete(collected);
+        if (!this.revealed) {
+            this.reveal();
+        }
+        return collected;
     }
 
     containsPoint(x, y) {

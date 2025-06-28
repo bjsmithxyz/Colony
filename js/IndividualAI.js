@@ -98,6 +98,11 @@ export class IndividualAI {
             const collected = this.targetFood.collect(this.individual.carryingCapacity - this.individual.carrying);
             this.individual.carrying += collected;
             
+            // Remember this food source
+            if (!this.knownFoodSources.includes(this.targetFood)) {
+                this.knownFoodSources.push(this.targetFood);
+            }
+            
             if (this.individual.carrying >= this.individual.carryingCapacity) {
                 this.state = 'RETURNING';
                 this.setDirectionToTarget(this.individual.parentNode);
@@ -118,7 +123,15 @@ export class IndividualAI {
             this.individual.parentNode.food += this.individual.carrying;
             simulation.totalFoodCollected += this.individual.carrying;
             this.individual.carrying = 0;
-            this.state = 'SEARCHING';
+            
+            // If we remember a food source that still has food, go back to it
+            if (this.targetFood && this.targetFood.amount > 0) {
+                this.state = 'TARGETING';
+                this.setDirectionToTarget(this.targetFood);
+            } else {
+                this.state = 'SEARCHING';
+                this.targetFood = null;
+            }
         } else {
             this.setDirectionToTarget(this.individual.parentNode);
         }

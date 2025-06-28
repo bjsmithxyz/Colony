@@ -178,6 +178,13 @@ export class Simulation {
             this.spatialGrid.insert(individual);
         });
         
+        // Insert food sources into spatial grid
+        this.foodSources.forEach(food => {
+            if (!food.depleted) {
+                this.spatialGrid.insert(food);
+            }
+        });
+        
         // Update individuals with spatial optimization
         for (let i = this.individuals.length - 1; i >= 0; i--) {
             const individual = this.individuals[i];
@@ -252,7 +259,7 @@ export class Simulation {
     }
 
     generateFoodSources() {
-        const numSources = 10 + Math.floor(Math.random() * 10); // Doubled from 5 + 0-4 to 10 + 0-9
+        const numSources = 20 + Math.floor(Math.random() * 15); // Increased to 20-35 sources
         
         for (let i = 0; i < numSources; i++) {
             const x = Math.floor(Math.random() * (CONFIG.MAP.WIDTH - 40)) + 20;
@@ -273,7 +280,8 @@ export class Simulation {
     }
     
     findNearbyEntities(x, y, radius) {
-        return this.spatialGrid.queryRadius(x, y, radius);
+        const results = this.spatialGrid.queryRadius(x, y, radius);
+        return results.map(result => result.entity);
     }
 
     selectTarget(target) {

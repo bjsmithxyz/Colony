@@ -7,14 +7,14 @@ export const CONFIG = {
     NODE: {
         SIZE: 3,
         COLOR: '#4CAF50',
-        MAX_NODES: 10,
+        MAX_NODES: 1,
         SPAWN_THRESHOLD: 10
     },
     INDIVIDUAL: {
         SIZE: 1,
         COLOR: '#2196F3',
         MOVEMENT_SPEED: 1,
-        DETECTION_RANGE: 5,
+        DETECTION_RANGE: 15,
         CARRYING_CAPACITY: 2,
         ENERGY_CONSUMPTION: 1
     },
