@@ -17,7 +17,15 @@ export class IndividualAI {
     update(simulation) {
         this.updateStuckDetection();
         
+        // If individual is a dropper, force DROPPER behavior
+        if (this.individual.willDropNodeOnDeath) {
+            this.state = 'DROPPER';
+        }
+
         switch (this.state) {
+            case 'DROPPER':
+                this.handleDropper(simulation);
+                break;
             case 'SEARCHING':
                 this.handleSearching(simulation);
                 break;
@@ -102,6 +110,11 @@ export class IndividualAI {
             if (!this.knownFoodSources.includes(this.targetFood)) {
                 this.knownFoodSources.push(this.targetFood);
             }
+
+            // If this individual was immune until finding initial food, clear that flag now
+            if (collected > 0 && this.individual.initialImmune) {
+                this.individual.initialImmune = false;
+            }
             
             if (this.individual.carrying >= this.individual.carryingCapacity) {
                 this.state = 'RETURNING';
@@ -151,6 +164,8 @@ export class IndividualAI {
         
         for (const entity of nearbyEntities) {
             if (entity.amount !== undefined && entity.amount > 0) { // It's a food source
+                // If this individual should ignore food (e.g., special dropper role), skip
+                if (this.individual.ignoreFood) continue;
                 const distance = this.getDistanceToTarget(entity);
                 if (distance < closestDistance) {
                     closestDistance = distance;
@@ -164,6 +179,7 @@ export class IndividualAI {
 
     getCommunicatedFoodSource(simulation) {
         if (!this.individual.communicationEnabled) return null;
+        if (this.individual.ignoreFood) return null;
         
         const nearbyIndividuals = simulation.findNearbyEntities(
             this.individual.x, 
@@ -238,6 +254,16 @@ export class IndividualAI {
                                 clusterDirection * this.individual.clusterForce;
             }
         }
+    }
+
+    /**
+     * Dropper behavior: purely random wandering, no food interactions, no clustering or communication.
+     */
+    handleDropper(simulation) {
+        // Simple random walk with occasional direction changes
+        this.randomWalk(0.4);
+        // Slightly slower movement to increase lifetime so droppers wander visibly
+        this.individual.speed = Math.max(this.individual.speed * 0.9, 0.4);
     }
 
     randomWalk(changeFrequency = 0.2) {

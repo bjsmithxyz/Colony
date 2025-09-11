@@ -15,6 +15,12 @@ export class ContextMenuManager {
             
             // Remove the node
             this.simulation.nodes.splice(index, 1);
+            // Remove spawn bar UI if present
+            try {
+                if (node._spawnBarEl && node._spawnBarEl.wrapper && node._spawnBarEl.wrapper.parentNode) {
+                    node._spawnBarEl.wrapper.parentNode.removeChild(node._spawnBarEl.wrapper);
+                }
+            } catch (e) {}
             
             // Clear selection if this was the selected node
             if (this.simulation.selectedTarget === node) {
@@ -33,17 +39,13 @@ export class ContextMenuManager {
         // Create new node at offset position
         const offsetX = 30;
         const offsetY = 30;
-        const newNode = new this.simulation.Node(
-            Math.min(node.x + offsetX, this.simulation.CONFIG.MAP.WIDTH - 20),
-            Math.min(node.y + offsetY, this.simulation.CONFIG.MAP.HEIGHT - 20)
-        );
-        newNode.simulation = this.simulation;
-        newNode.food = node.food;
-        
-    // Module system removed: do not copy modules
-        
-        this.simulation.nodes.push(newNode);
-        this.simulation.selectTarget(newNode);
+        const x = Math.min(node.x + offsetX, this.simulation.CONFIG.MAP.WIDTH - 20);
+        const y = Math.min(node.y + offsetY, this.simulation.CONFIG.MAP.HEIGHT - 20);
+        const newNode = this.simulation.addNode(x, y);
+        if (newNode) {
+            newNode.food = node.food;
+            this.simulation.selectTarget(newNode);
+        }
     }
     
     clearNodeModules(node) {

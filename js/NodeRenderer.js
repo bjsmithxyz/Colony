@@ -21,6 +21,16 @@ export class NodeRenderer {
         
         // Render the main node body
         this.renderNodeBody(ctx);
+
+        // If this node participates in a shared pool, render a small label with shared total
+        if (this.node.sharedPool) {
+            this.renderSharedPoolLabel(ctx);
+        }
+
+        // If this node was created by a dropper (recently dropped), render a subtle halo
+        if (this.node.droppedNode) {
+            this.renderDroppedHalo(ctx);
+        }
     }
 
     /**
@@ -67,6 +77,29 @@ export class NodeRenderer {
         } else {
             this.renderWithFillRect(ctx);
         }
+    }
+
+    renderSharedPoolLabel(ctx) {
+        const label = `${this.node.food || 0}`;
+        ctx.save();
+        ctx.font = '10px monospace';
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+        ctx.lineWidth = 2;
+        // Position label slightly above node center
+        ctx.strokeText(label, this.node.x + 6, this.node.y - 6);
+        ctx.fillText(label, this.node.x + 6, this.node.y - 6);
+        ctx.restore();
+    }
+
+    renderDroppedHalo(ctx) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(this.node.x, this.node.y, Math.max(8, this.node.size / 2), 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(100, 149, 237, 0.6)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.restore();
     }
 
     /**

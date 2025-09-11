@@ -57,6 +57,13 @@ export class Node {
     if (now - this.lastSpawnTime < this.spawnCooldown) return false;
     if (this.food < 10) return false;
             const individual = this.simulation.individualPool.acquire(this);
+            // If simulation has marked next spawn as dropper, configure this individual
+            if (this.simulation && this.simulation._markNextSpawnAsDropper) {
+                individual.willDropNodeOnDeath = true;
+                individual.ignoreFood = true; // dropper should wander and not react to food
+                // consume the flag so only one individual is marked
+                this.simulation._markNextSpawnAsDropper = false;
+            }
             
             // Apply specialization if enabled
             if (this.specializationEnabled) {
@@ -89,8 +96,12 @@ export class Node {
      */
     storeFood(amount, sourceDirection = null, depositLocation = null) {
         this.food += amount;
+        // If this node participates in a shared pool, also add to shared total
+        if (this.sharedPool) this.sharedPool.totalFood = (this.sharedPool.totalFood || 0) + amount;
         if (this.simulation && amount > 0) {
             this.simulation.totalFoodCollected += amount;
+            // Notify simulation about food milestone so it can set dropper flags
+            if (this.simulation.checkFoodMilestone) this.simulation.checkFoodMilestone(this, amount);
         }
         
         // Delegate growth processing to growth manager

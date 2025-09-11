@@ -7,7 +7,7 @@ export const CONFIG = {
     NODE: {
         SIZE: 3,
         COLOR: '#4CAF50',
-        MAX_NODES: 1,
+        MAX_NODES: 100,
         SPAWN_THRESHOLD: 10
     },
     INDIVIDUAL: {

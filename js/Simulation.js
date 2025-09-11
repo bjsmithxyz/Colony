@@ -38,6 +38,26 @@ export class Simulation {
         // Statistics
         this.totalFoodCollected = 0;
         this.totalIndividualsSpawned = 0;
+        // Track milestones for node-dropping individuals
+        this._nextDropAt = 150;
+        this._markNextSpawnAsDropper = false;
+        // Shared resource pool for nodes (nodes will reference this.sharedNodePool)
+        this.sharedNodePool = { totalFood: 0 };
+    }
+
+    /**
+     * Called by Node.storeFood when food is added to a node.
+     * Checks for milestones to mark the next spawned individual as a dropper.
+     */
+    checkFoodMilestone(node, amount) {
+        // Update shared pool total
+        if (node.sharedPool) node.sharedPool.totalFood += amount;
+
+        // If totalFoodCollected reached next threshold, mark flag so that the next spawned individual will be a dropper
+        if (this.totalFoodCollected >= this._nextDropAt) {
+            this._nextDropAt += 150; // schedule next milestone
+            this._markNextSpawnAsDropper = true;
+        }
     }
 
     initializeCanvas() {
@@ -83,6 +103,39 @@ export class Simulation {
         this.renderer = new SimulationRenderer(this);
         this.contextMenuManager = new ContextMenuManager(this);
         this.performanceMonitor = new PerformanceMonitor(this);
+        // Create container for node spawn bars (bottom-left UI)
+        this.nodeBarContainer = document.getElementById('nodeSpawnBars');
+        if (!this.nodeBarContainer) {
+            this.nodeBarContainer = document.createElement('div');
+            this.nodeBarContainer.id = 'nodeSpawnBars';
+            Object.assign(this.nodeBarContainer.style, {
+                position: 'fixed',
+                width: '50px',
+                display: 'flex',
+                flexDirection: 'column-reverse',
+                gap: '6px',
+                pointerEvents: 'none',
+                zIndex: 1000
+            });
+            document.body.appendChild(this.nodeBarContainer);
+
+            // Position relative to the simulation canvas
+            this._updateNodeBarPosition = () => {
+                try {
+                    const rect = this.canvas.getBoundingClientRect();
+                    // place 10px inset from canvas left, and 10px above canvas bottom
+                    this.nodeBarContainer.style.left = `${Math.round(rect.left + -40)}px`;
+                    const bottomPx = Math.max(0, Math.round(window.innerHeight - rect.bottom + 10));
+                    this.nodeBarContainer.style.bottom = `${bottomPx}px`;
+                } catch (e) { }
+            };
+
+            // Initial position
+            this._updateNodeBarPosition();
+            // Update on resize/scroll so the bars stay anchored to the canvas
+            window.addEventListener('resize', this._updateNodeBarPosition);
+            window.addEventListener('scroll', this._updateNodeBarPosition, true);
+        }
     }
 
     // Module system removed: no initializeModules
@@ -125,6 +178,40 @@ export class Simulation {
         // Update statistics periodically
         if (this.frameCount % 30 === 0) {
             this.updateStats();
+        }
+
+        // Update per-node spawn bars every update for smooth animation
+        this.updateSpawnBars();
+    }
+
+    updateSpawnBars() {
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        for (let i = 0; i < this.nodes.length; i++) {
+            const node = this.nodes[i];
+            if (!node._spawnBarEl) continue;
+
+            // Compute progress (left-to-right) until next spawn
+            const elapsed = now - (node.lastSpawnTime || 0);
+            const cooldown = node.spawnCooldown || 1;
+            let progress = Math.max(0, Math.min(1, elapsed / cooldown));
+            // If node doesn't have enough food to spawn, show empty bar
+            if (node.food < 10) progress = 0;
+            node._spawnBarEl.fill.style.width = `${progress * 100}%`;
+
+            // Update fill color based on node color
+            try {
+                const base = (node.color && node.color.startsWith('#')) ? node.color : '#4CAF50';
+                const hex = base.replace('#','');
+                const r = parseInt(hex.substring(0,2),16);
+                const g = parseInt(hex.substring(2,4),16);
+                const b = parseInt(hex.substring(4,6),16);
+                const mix = (c) => Math.min(255, Math.round(c + (255 - c) * 0.4));
+                const lr = mix(r).toString(16).padStart(2,'0');
+                const lg = mix(g).toString(16).padStart(2,'0');
+                const lb = mix(b).toString(16).padStart(2,'0');
+                const lighter = `#${lr}${lg}${lb}`;
+                node._spawnBarEl.fill.style.background = `linear-gradient(90deg, ${base}, ${lighter})`;
+            } catch (e) {}
         }
     }
 
@@ -174,6 +261,20 @@ export class Simulation {
             individual.parentNode.individuals.splice(nodeIndex, 1);
         }
         
+        // If this individual was designated to drop a node, create it at death location
+        if (individual.willDropNodeOnDeath) {
+            const x = Math.max(0, Math.min(individual.x, this.CONFIG.MAP.WIDTH - 1));
+            const y = Math.max(0, Math.min(individual.y, this.CONFIG.MAP.HEIGHT - 1));
+            const newNode = this.addNode(x, y, { createInitialIndividual: true });
+            if (newNode) {
+                newNode.droppedNode = true;
+                // Clear the dropped marker after 10 seconds
+                setTimeout(() => {
+                    try { newNode.droppedNode = false; } catch (e) { /* node may be removed */ }
+                }, 10000);
+            }
+        }
+
         // Return to object pool
         this.individualPool.release(individual);
     }
@@ -193,7 +294,7 @@ export class Simulation {
     }
 
     // Entity management
-    addNode(x, y) {
+    addNode(x, y, opts = {}) {
         if (this.nodes.length >= CONFIG.NODE.MAX_NODES) {
             console.warn('Maximum nodes reached:', CONFIG.NODE.MAX_NODES);
             return;
@@ -202,17 +303,56 @@ export class Simulation {
         try {
             const node = new Node(x, y);
             node.simulation = this;
+            // Link node to shared pool so resources can be treated as shared
+            node.sharedPool = this.sharedNodePool;
             this.nodes.push(node);
+
+            // Create a spawn bar UI element for this node
+            try {
+                const barWrapper = document.createElement('div');
+                Object.assign(barWrapper.style, {
+                    width: '50px',
+                    height: '5px',
+                    background: 'rgba(0,0,0,0.25)',
+                    borderRadius: '2px',
+                    overflow: 'hidden'
+                });
+                const fill = document.createElement('div');
+                Object.assign(fill.style, {
+                    height: '100%',
+                    width: '0%',
+                    transformOrigin: 'left center',
+                    background: '#4CAF50'
+                });
+                barWrapper.appendChild(fill);
+                this.nodeBarContainer.appendChild(barWrapper);
+                node._spawnBarEl = { wrapper: barWrapper, fill: fill };
+            } catch (e) {
+                // DOM may not be available in some test environments
+            }
             
             // Create first individual if this is the first node
             if (this.nodes.length === 1) {
                 const individual = this.individualPool.acquire(node);
+                // first individual should be immune until it finds initial food
+                individual.initialImmune = true;
                 this.individuals.push(individual);
                 node.individuals.push(individual);
                 this.totalIndividualsSpawned++;
             }
+
+            // Optionally create an initial individual for newly created nodes (e.g., dropped nodes)
+            if (opts.createInitialIndividual) {
+                if (node.food >= 0) {
+                    const ind = this.individualPool.acquire(node);
+                    this.individuals.push(ind);
+                    node.individuals.push(ind);
+                    this.totalIndividualsSpawned++;
+                }
+            }
             
             this.updateStats();
+            return node;
         } catch (error) {
             console.error('Error adding node:', error);
         }
@@ -261,7 +401,13 @@ export class Simulation {
         const ovFood = document.getElementById('ov_totalFood');
         const ovCollected = document.getElementById('ov_foodCollected');
 
-        const totalFood = this.nodes.reduce((sum, node) => sum + node.food, 0);
+        // If nodes are linked to a shared pool, use that authoritative total
+        let totalFood = 0;
+        if (this.nodes.length > 0 && this.nodes[0].sharedPool) {
+            totalFood = this.sharedNodePool.totalFood || 0;
+        } else {
+            totalFood = this.nodes.reduce((sum, node) => sum + node.food, 0);
+        }
 
         if (ovNode) ovNode.textContent = this.nodes.length;
         if (ovInd) ovInd.textContent = this.individuals.length;
@@ -303,6 +449,12 @@ export class Simulation {
             this.totalFoodCollected = 0;
             this.totalIndividualsSpawned = 0;
             this.selectedTarget = null;
+            // Remove all spawn bar elements
+            try {
+                if (this.nodeBarContainer) {
+                    while (this.nodeBarContainer.firstChild) this.nodeBarContainer.removeChild(this.nodeBarContainer.firstChild);
+                }
+            } catch (e) {}
             
             this.generateFoodSources();
             this.updateStats();

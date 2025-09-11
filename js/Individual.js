@@ -42,6 +42,12 @@ export class Individual {
         this.specialization = null;
         this.scoutMode = false;
         this.workerMode = false;
+    // Immortality until initial food is found (used for the very first individual)
+    this.initialImmune = false;
+    // If true the individual will ignore/ not react to food sources
+    this.ignoreFood = false;
+    // If true the individual will drop a new node at death
+    this.willDropNodeOnDeath = false;
         
         // Apply specialization if enabled
         if (this.parentNode.specializationEnabled) {
@@ -108,7 +114,10 @@ export class Individual {
         if (this.carrying === 0) {
             this.energyLevel = (this.energyLevel || 3000) - this.energyConsumption;
             if (this.energyLevel <= 0) {
-                this.isDead = true;
+                // Respect initial immunity: the very first spawned individual may be immune
+                if (!this.initialImmune) {
+                    this.isDead = true;
+                }
             }
         } else {
             this.energyLevel = 3000; // Reset energy when carrying food
@@ -161,6 +170,15 @@ export class Individual {
                 1,
                 1
             );
+        }
+
+        // Draw dropper marker (small red ring) if this individual will drop a node on death
+        if (this.willDropNodeOnDeath) {
+            ctx.strokeStyle = 'rgba(255, 80, 80, 0.9)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(this.x + this.size / 2, this.y + this.size / 2, this.size + 2, 0, Math.PI * 2);
+            ctx.stroke();
         }
     }
 
