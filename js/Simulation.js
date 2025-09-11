@@ -3,7 +3,6 @@ import { Node } from './Node.js';
 import { Individual } from './Individual.js';
 import { FoodSource } from './FoodSource.js';
 import { TrailSystem } from './TrailSystem.js';
-import { ModuleManager } from './ModuleManager.js';
 import { SpatialGrid } from './SpatialGrid.js';
 import { ObjectPool } from './ObjectPool.js';
 import { DirtyRectManager } from './DirtyRectManager.js';
@@ -13,19 +12,7 @@ import { SimulationRenderer } from './SimulationRenderer.js';
 import { ContextMenuManager } from './ContextMenuManager.js';
 import { PerformanceMonitor } from './PerformanceMonitor.js';
 
-// Import modules for registration
-import { VisionModule } from './modules/VisionModule.js';
-import { SpeedModule } from './modules/SpeedModule.js';
-import { EfficiencyModule } from './modules/EfficiencyModule.js';
-import { CapacityModule } from './modules/CapacityModule.js';
-import { RedThemeModule, BlueThemeModule, PurpleThemeModule, OrangeThemeModule } from './modules/ColorModule.js';
-import { SizeModule } from './modules/SizeModule.js';
-import { TrailModule } from './modules/TrailModule.js';
-import { BeaconModule } from './modules/BeaconModule.js';
-import { CommunicationModule } from './modules/CommunicationModule.js';
-import { SpecializationModule } from './modules/SpecializationModule.js';
-import { PriorityModule } from './modules/PriorityModule.js';
-import { ClusterModule } from './modules/ClusterModule.js';
+// Module implementations removed; no imports
 
 /**
  * Main Simulation class - modular and focused architecture
@@ -39,8 +26,7 @@ export class Simulation {
         
         this.initializeCanvas();
         this.initializeEntities();
-        this.initializeSystemsAndManagers();
-        this.initializeModules();
+    this.initializeSystemsAndManagers();
         
         this.generateFoodSources();
         
@@ -81,7 +67,8 @@ export class Simulation {
     initializeSystemsAndManagers() {
         // Core systems
         this.trailSystem = new TrailSystem(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT);
-        this.moduleManager = new ModuleManager(this);
+    // Module system removed: no ModuleManager
+    this.moduleManager = null;
         this.spatialGrid = new SpatialGrid(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 32);
         this.dirtyRectManager = new DirtyRectManager(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 64);
         this.levelOfDetail = new LevelOfDetail(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT);
@@ -101,30 +88,7 @@ export class Simulation {
         this.performanceMonitor = new PerformanceMonitor(this);
     }
 
-    initializeModules() {
-        // Register enhancement modules
-        this.moduleManager.registerModuleClass(VisionModule);
-        this.moduleManager.registerModuleClass(SpeedModule);
-        this.moduleManager.registerModuleClass(EfficiencyModule);
-        this.moduleManager.registerModuleClass(CapacityModule);
-        
-        // Register visual modules
-        this.moduleManager.registerModuleClass(RedThemeModule);
-        this.moduleManager.registerModuleClass(BlueThemeModule);
-        this.moduleManager.registerModuleClass(PurpleThemeModule);
-        this.moduleManager.registerModuleClass(OrangeThemeModule);
-        this.moduleManager.registerModuleClass(SizeModule);
-        this.moduleManager.registerModuleClass(TrailModule);
-        this.moduleManager.registerModuleClass(BeaconModule);
-        
-        // Register behavior modules
-        this.moduleManager.registerModuleClass(CommunicationModule);
-        this.moduleManager.registerModuleClass(SpecializationModule);
-        this.moduleManager.registerModuleClass(PriorityModule);
-        this.moduleManager.registerModuleClass(ClusterModule);
-        
-        console.log('Modules initialized:', this.moduleManager.getAvailableModules().length);
-    }
+    // Module system removed: no initializeModules
 
     // Core simulation methods
     update() {
@@ -158,9 +122,8 @@ export class Simulation {
         this.updateNodes();
         this.updateIndividuals();
         
-        // Update systems
-        this.trailSystem.update();
-        this.moduleManager.update();
+    // Update systems
+    this.trailSystem.update();
         
         // Update statistics periodically
         if (this.frameCount % 30 === 0) {
@@ -287,7 +250,6 @@ export class Simulation {
     selectTarget(target) {
         this.selectedTarget = target;
         this.updateModuleUI();
-        this.updateNodeControls();
     }
 
     togglePause() {
@@ -315,38 +277,20 @@ export class Simulation {
             window.enhancedUI.updateChartData(statsData);
         }
         
-        // Update node controls if a node is selected
-        if (this.selectedTarget) {
-            this.updateNodeControls();
-        }
+    // Node controls UI removed; nothing to update here.
     }
 
     updateModuleUI() {
+        // Module UI removed. Clear module list if present.
         const moduleList = document.getElementById('moduleList');
-        
-        if (!this.selectedTarget) {
-            moduleList.innerHTML = '<div class="module-placeholder"><span class="placeholder-icon">🎯</span><p>Select a node to see active modules</p><small>Drag modules here to activate</small></div>';
-            return;
+        if (moduleList) {
+            moduleList.innerHTML = '<p class="placeholder">Modules are not available in this build.</p>';
         }
-        
-        // Delegate complex module UI logic to a separate method
-        this.renderModuleUI(moduleList);
     }
 
     renderModuleUI(moduleList) {
-        const availableModules = this.moduleManager.getAvailableModules();
-        const activeModules = this.moduleManager.getModulesForTarget(this.selectedTarget);
-        
-        if (availableModules.length === 0) {
-            moduleList.innerHTML = '<p class="placeholder">No modules available yet</p>';
-            return;
-        }
-        
-        moduleList.innerHTML = '';
-        
-        // Group modules by type and render
-        const modulesByType = this.groupModulesByType(availableModules);
-        this.renderModuleCategories(moduleList, modulesByType, activeModules);
+    // Module UI removed - no-op
+    moduleList.innerHTML = '<p class="placeholder">Modules removed</p>';
     }
 
     groupModulesByType(modules) {
@@ -382,138 +326,26 @@ export class Simulation {
     }
 
     createModuleElement(module, activeModules, type) {
-        const isActive = activeModules.includes(module);
-        const canApply = module.canApply(this.selectedTarget, this);
-        
-        const moduleElement = document.createElement('div');
-        moduleElement.className = `module-item ${isActive ? 'active' : ''} ${type}`;
-        moduleElement.draggable = true;
-        moduleElement.dataset.moduleId = module.id;
-        
-        moduleElement.innerHTML = `
-            <h4>${module.name}</h4>
-            <p>${module.description}</p>
-            <div class="module-cost">Cost: ${module.cost} food</div>
-            <button ${(!canApply && !isActive) ? 'disabled' : ''}>
-                ${isActive ? 'Deactivate' : 'Activate'}
-            </button>
-        `;
-        
-        this.setupModuleElementEvents(moduleElement, module, isActive);
-        
-        return moduleElement;
+    // Module elements no longer created
+    const moduleElement = document.createElement('div');
+    moduleElement.className = 'module-removed';
+    moduleElement.textContent = 'Module UI removed';
+    return moduleElement;
     }
 
     setupModuleElementEvents(moduleElement, module, isActive) {
-        const button = moduleElement.querySelector('button');
-        button.addEventListener('click', () => {
-            moduleElement.classList.remove('activating', 'deactivating');
-            
-            if (isActive) {
-                moduleElement.classList.add('deactivating');
-                this.moduleManager.deactivateModule(module.id, this.selectedTarget);
-                this.renderer.addVisualEffect(this.selectedTarget.x, this.selectedTarget.y, 'deactivate');
-            } else {
-                moduleElement.classList.add('activating');
-                this.moduleManager.activateModule(module.id, this.selectedTarget);
-                this.renderer.addVisualEffect(this.selectedTarget.x, this.selectedTarget.y, 'activate');
-            }
-            
-            setTimeout(() => {
-                moduleElement.classList.remove('activating', 'deactivating');
-            }, 400);
-        });
-        
-        this.setupModuleDragAndDrop(moduleElement, module);
+    // Module interactions removed
     }
 
     setupModuleDragAndDrop(moduleElement, module) {
-        let dragPreview = null;
-        
-        moduleElement.addEventListener('dragstart', (e) => {
-            moduleElement.classList.add('dragging');
-            
-            dragPreview = moduleElement.cloneNode(true);
-            dragPreview.className = 'drag-preview';
-            dragPreview.style.width = moduleElement.offsetWidth + 'px';
-            document.body.appendChild(dragPreview);
-            
-            e.dataTransfer.setData('text/plain', module.id);
-            e.dataTransfer.effectAllowed = 'copy';
-            e.dataTransfer.setDragImage(new Image(), 0, 0);
-        });
-        
-        moduleElement.addEventListener('dragend', () => {
-            moduleElement.classList.remove('dragging');
-            if (dragPreview) {
-                document.body.removeChild(dragPreview);
-                dragPreview = null;
-            }
-        });
-        
-        document.addEventListener('dragover', (e) => {
-            if (dragPreview) {
-                dragPreview.style.left = (e.clientX + 10) + 'px';
-                dragPreview.style.top = (e.clientY + 10) + 'px';
-            }
-        });
-        
-        this.setupCanvasDropTarget();
+    // Drag-and-drop removed
     }
     
     setupCanvasDropTarget() {
-        if (this.canvasDropSetup) return;
-        this.canvasDropSetup = true;
-        
-        this.canvas.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'copy';
-            this.canvas.style.filter = 'brightness(1.1)';
-        });
-        
-        this.canvas.addEventListener('dragleave', () => {
-            this.canvas.style.filter = '';
-        });
-        
-        this.canvas.addEventListener('drop', (e) => {
-            e.preventDefault();
-            this.canvas.style.filter = '';
-            
-            const moduleId = e.dataTransfer.getData('text/plain');
-            if (!moduleId) return;
-            
-            const coords = this.eventHandler.getCanvasCoordinates(e);
-            const targetNode = this.getNodeAt(coords.x, coords.y);
-            
-            if (targetNode) {
-                const success = this.moduleManager.activateModule(moduleId, targetNode);
-                if (success) {
-                    this.renderer.addVisualEffect(targetNode.x, targetNode.y, 'activate');
-                    this.updateModuleUI();
-                    this.updateNodeControls();
-                }
-            }
-        });
+    // Canvas drop target for modules removed
     }
 
-    updateNodeControls() {
-        const spawnBtn = document.getElementById('spawnBtn');
-        
-        if (!this.selectedTarget) {
-            spawnBtn.disabled = true;
-            spawnBtn.textContent = 'Spawn Individual (10 food)';
-            return;
-        }
-        
-        const canSpawn = this.selectedTarget.canSpawn();
-        spawnBtn.disabled = !canSpawn;
-        
-        if (canSpawn) {
-            spawnBtn.textContent = `Spawn Individual (10 food) - ${this.selectedTarget.food} available`;
-        } else {
-            spawnBtn.textContent = `Spawn Individual (10 food) - Need ${10 - this.selectedTarget.food} more`;
-        }
-    }
+    // updateNodeControls removed: UI removed and spawning is automated in Node.storeFood().
 
     // Delegate context menu actions to ContextMenuManager
     deleteNode(node) {
@@ -543,7 +375,7 @@ export class Simulation {
             
             this.generateFoodSources();
             this.updateStats();
-            this.updateNodeControls();
+            // updateNodeControls call removed
             
             console.log('Simulation reset');
         }
@@ -551,56 +383,15 @@ export class Simulation {
 
     // Module integration methods
     handleModuleAdded(moduleData) {
-        if (!this.selectedTarget) {
-            console.warn('No target selected for module addition');
-            return;
-        }
-        
-        const moduleClass = this.getModuleClass(moduleData.type);
-        if (moduleClass) {
-            try {
-                this.renderer.addVisualEffect(this.selectedTarget.x, this.selectedTarget.y, 'activate');
-                this.moduleManager.addModule(this.selectedTarget, moduleClass);
-                this.updateStats();
-                this.updateNodeControls();
-            } catch (error) {
-                console.error(`Failed to add module ${moduleData.type}:`, error);
-            }
-        }
+    // Module addition events ignored; modules removed
     }
     
     handleModuleRemoved(moduleData) {
-        if (!this.selectedTarget) return;
-        
-        const moduleClass = this.getModuleClass(moduleData.type);
-        if (moduleClass) {
-            try {
-                this.moduleManager.removeModule(this.selectedTarget, moduleClass);
-                this.updateStats();
-                this.updateNodeControls();
-            } catch (error) {
-                console.error(`Failed to remove module ${moduleData.type}:`, error);
-            }
-        }
+    // Module removal events ignored; modules removed
     }
     
     getModuleClass(moduleType) {
-        const moduleMap = {
-            'speed': SpeedModule,
-            'efficiency': EfficiencyModule,
-            'vision': VisionModule,
-            'communication': CommunicationModule,
-            'specialization': SpecializationModule,
-            'capacity': CapacityModule,
-            'trail': TrailModule,
-            'beacon': BeaconModule,
-            'cluster': ClusterModule,
-            'color': RedThemeModule,
-            'priority': PriorityModule,
-            'size': SizeModule
-        };
-        
-        return moduleMap[moduleType] || null;
+    return null; // Modules removed
     }
 
     // Main game loop

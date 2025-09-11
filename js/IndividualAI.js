@@ -119,10 +119,12 @@ export class IndividualAI {
         const distance = this.getDistanceToTarget(this.individual.parentNode);
         
         if (distance < 3) {
-            // Close enough to deposit food
-            this.individual.parentNode.food += this.individual.carrying;
-            simulation.totalFoodCollected += this.individual.carrying;
-            this.individual.carrying = 0;
+            // Close enough to deposit food — use Node.storeFood so spawn logic and growth run
+            const amount = this.individual.carrying;
+            if (amount > 0) {
+                this.individual.parentNode.storeFood(amount);
+                this.individual.carrying = 0;
+            }
             
             // If we remember a food source that still has food, go back to it
             if (this.targetFood && this.targetFood.amount > 0) {

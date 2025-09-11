@@ -25,24 +25,6 @@
     </div>
 
     <div class="app-container">
-        <!-- Header -->
-        <header class="app-header">
-            <div class="header-content">
-                <h1 class="app-title">
-                    <span class="title-icon">🏭</span>
-                    Colony
-                </h1>
-                <div class="header-actions">
-                    <button class="header-btn" id="helpBtn" title="Help & Tutorial">
-                        <span class="btn-icon">❓</span>
-                    </button>
-                    <button class="header-btn" id="settingsBtn" title="Settings">
-                        <span class="btn-icon">⚙️</span>
-                    </button>
-                </div>
-            </div>
-        </header>
-
         <div class="main-content">
             <!-- Simulation Canvas -->
             <div class="canvas-container">
@@ -169,101 +151,8 @@
                         </div>
                     </div>
 
-                    <!-- Node Controls Card -->
-                    <div class="control-card node-card">
-                        <div class="card-header">
-                            <h3 class="card-title">
-                                <span class="card-icon">🏗️</span>
-                                Node Controls
-                            </h3>
-                        </div>
-                        <div class="card-content">
-                            <button id="spawnBtn" class="action-btn primary-btn" disabled>
-                                <span class="btn-icon">👥</span>
-                                Spawn Individual (10 food)
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Modules Card -->
-                    <div class="control-card modules-card">
-                        <div class="card-header">
-                            <h3 class="card-title">
-                                <span class="card-icon">🔧</span>
-                                Modules
-                            </h3>
-                        </div>
-                        <div class="card-content">
-                            <div class="module-tabs">
-                                <button class="module-tab active" data-tab="active">Active</button>
-                                <button class="module-tab" data-tab="available">Available</button>
-                            </div>
-                            
-                            <!-- Active Modules Tab -->
-                            <div class="module-tab-content active" id="activeModules">
-                                <div id="moduleList" class="module-list">
-                                    <div class="module-placeholder">
-                                        <span class="placeholder-icon">🎯</span>
-                                        <p>Select a node to see active modules</p>
-                                        <small>Drag modules here to activate</small>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Available Modules Tab -->
-                            <div class="module-tab-content" id="availableModules">
-                                <div class="module-library">
-                                    <div class="module-category">
-                                        <h4 class="category-title">🚀 Performance</h4>
-                                        <div class="module-grid">
-                                            <div class="module-item draggable" data-module="speed" draggable="true">
-                                                <div class="module-icon">⚡</div>
-                                                <div class="module-name">Speed</div>
-                                                <div class="module-cost">Cost: 5</div>
-                                            </div>
-                                            <div class="module-item draggable" data-module="efficiency" draggable="true">
-                                                <div class="module-icon">⚙️</div>
-                                                <div class="module-name">Efficiency</div>
-                                                <div class="module-cost">Cost: 8</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="module-category">
-                                        <h4 class="category-title">👁️ Perception</h4>
-                                        <div class="module-grid">
-                                            <div class="module-item draggable" data-module="vision" draggable="true">
-                                                <div class="module-icon">👁️</div>
-                                                <div class="module-name">Vision</div>
-                                                <div class="module-cost">Cost: 6</div>
-                                            </div>
-                                            <div class="module-item draggable" data-module="communication" draggable="true">
-                                                <div class="module-icon">📡</div>
-                                                <div class="module-name">Communication</div>
-                                                <div class="module-cost">Cost: 10</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="module-category">
-                                        <h4 class="category-title">🎯 Specialization</h4>
-                                        <div class="module-grid">
-                                            <div class="module-item draggable" data-module="specialization" draggable="true">
-                                                <div class="module-icon">🎯</div>
-                                                <div class="module-name">Specialization</div>
-                                                <div class="module-cost">Cost: 12</div>
-                                            </div>
-                                            <div class="module-item draggable" data-module="capacity" draggable="true">
-                                                <div class="module-icon">📦</div>
-                                                <div class="module-name">Capacity</div>
-                                                <div class="module-cost">Cost: 7</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Node Controls removed -->
+                    <!-- Modules area removed -->
                 </div>
             </aside>
         </div>
@@ -280,10 +169,7 @@
             <span class="context-icon">📋</span>
             Duplicate Node
         </button>
-        <button class="context-menu-item" data-action="clear-modules">
-            <span class="context-icon">🧹</span>
-            Clear Modules
-        </button>
+    <!-- Module clear action removed -->
         <hr class="context-menu-divider">
         <button class="context-menu-item" data-action="info">
             <span class="context-icon">ℹ️</span>
@@ -294,37 +180,7 @@
     <!-- Tooltip -->
     <div id="tooltip" class="tooltip" style="display: none;"></div>
 
-    <!-- Help Modal -->
-    <div id="helpModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Guide</h2>
-                <button class="modal-close" id="closeHelpModal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="help-content">
-                    <h3>Architecture</h3>
-                    <ul>
-                        <li><strong>Modular Design:</strong> Code is now split into focused, maintainable components</li>
-                        <li><strong>Better Performance:</strong> Optimized rendering and AI systems</li>
-                        <li><strong>Enhanced Testing:</strong> Each component can be tested independently</li>
-                    </ul>
-                    <h3>Getting Started</h3>
-                    <ul>
-                        <li><strong>Place Nodes:</strong> Click anywhere on the canvas to create nodes</li>
-                        <li><strong>Spawn Individuals:</strong> Select a node and click "Spawn Individual" when you have enough food</li>
-                        <li><strong>Watch Evolution:</strong> Individuals will automatically search for food and return to the colony</li>
-                    </ul>
-                    <h3>Controls</h3>
-                    <ul>
-                        <li><strong>Right-click:</strong> Access node actions menu</li>
-                        <li><strong>Hover:</strong> View detailed information in tooltips</li>
-                        <li><strong>Speed Slider:</strong> Adjust simulation speed (0.1x to 5x)</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
+    
 
     <script src="js/main.js" type="module"></script>
 </body>

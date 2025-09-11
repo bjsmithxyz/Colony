@@ -20,7 +20,6 @@ export class ContextMenuManager {
             if (this.simulation.selectedTarget === node) {
                 this.simulation.selectedTarget = null;
                 this.simulation.updateModuleUI();
-                this.simulation.updateNodeControls();
             }
         }
     }
@@ -41,34 +40,22 @@ export class ContextMenuManager {
         newNode.simulation = this.simulation;
         newNode.food = node.food;
         
-        // Copy modules
-        const nodeModules = this.simulation.moduleManager.getModulesForTarget(node);
-        nodeModules.forEach(module => {
-            const moduleClass = module.constructor;
-            this.simulation.moduleManager.activateModule(moduleClass, newNode);
-        });
+    // Module system removed: do not copy modules
         
         this.simulation.nodes.push(newNode);
         this.simulation.selectTarget(newNode);
     }
     
     clearNodeModules(node) {
-        const modules = this.simulation.moduleManager.getModulesForTarget(node);
-        modules.forEach(module => {
-            this.simulation.moduleManager.deactivateModule(module.constructor, node);
-        });
-        this.simulation.updateModuleUI();
+        // Module system removed: nothing to clear
     }
     
     showNodeInfo(node) {
-        const modules = this.simulation.moduleManager.getModulesForTarget(node);
-        const moduleNames = modules.map(m => m.name).join(', ') || 'None';
-        const individualCount = this.simulation.individuals.filter(ind => ind.parentNode === node).length;
+    const individualCount = this.simulation.individuals.filter(ind => ind.parentNode === node).length;
         
-        alert(`Node Information:
+    alert(`Node Information:
 Position: (${Math.round(node.x)}, ${Math.round(node.y)})
 Food: ${node.food}
-Individuals: ${individualCount}
-Modules: ${moduleNames}`);
+Individuals: ${individualCount}`);
     }
 }

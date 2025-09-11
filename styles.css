@@ -89,61 +89,7 @@ body {
     height: 100vh;
 }
 
-.app-header {
-    background: rgba(15, 15, 35, 0.95);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(79, 172, 254, 0.2);
-    padding: 0 24px;
-    z-index: 100;
-}
-
-.header-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 64px;
-    max-width: 1400px;
-    margin: 0 auto;
-}
-
-.app-title {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 20px;
-    font-weight: 700;
-    color: #f8fafc;
-    margin: 0;
-}
-
-.title-icon {
-    font-size: 24px;
-}
-
-.header-actions {
-    display: flex;
-    gap: 8px;
-}
-
-.header-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    border: 1px solid rgba(79, 172, 254, 0.3);
-    background: rgba(79, 172, 254, 0.1);
-    color: #4facfe;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-}
-
-.header-btn:hover {
-    background: rgba(79, 172, 254, 0.2);
-    border-color: rgba(79, 172, 254, 0.5);
-    transform: translateY(-1px);
-}
+/* header and top-banner removed to simplify UI */
 
 .main-content {
     display: flex;
@@ -428,43 +374,7 @@ body {
 }
 
 /* ===== MODULE TABS ===== */
-.module-tabs {
-    display: flex;
-    margin-bottom: 21px; /* Added 5px buffer from default 16px */
-    border-bottom: 1px solid rgba(79, 172, 254, 0.2);
-}
-
-.module-tab {
-    flex: 1;
-    padding: 8px 12px;
-    border: none;
-    background: transparent;
-    color: #94a3b8;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border-bottom: 2px solid transparent;
-}
-
-.module-tab:hover {
-    color: #e2e8f0;
-    background: rgba(79, 172, 254, 0.05);
-}
-
-.module-tab.active {
-    color: #4facfe;
-    border-bottom-color: #4facfe;
-}
-
-.module-tab-content {
-    display: none;
-    animation: fadeIn 0.3s ease;
-}
-
-.module-tab-content.active {
-    display: block;
-}
+/* Module UI removed */
 
 /* ===== CONTROL GROUP ===== */
 .control-group {
@@ -637,105 +547,7 @@ body {
     font-size: 16px;
 }
 
-.module-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-bottom: 20px;
-}
-
-/* ===== MODULE LIST ===== */
-.module-list {
-    min-height: 120px;
-}
-
-.module-placeholder {
-    text-align: center;
-    padding: 32px 16px;
-    color: #64748b;
-}
-
-.placeholder-icon {
-    font-size: 32px;
-    display: block;
-    margin-bottom: 8px;
-}
-
-.module-placeholder p {
-    font-size: 13px;
-    margin: 0;
-}
-
-/* Module items (for when modules are displayed) */
-.module-item {
-    background: rgba(30, 41, 59, 0.6);
-    border: 1px solid rgba(79, 172, 254, 0.2);
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-}
-
-.module-item:hover {
-    background: rgba(30, 41, 59, 0.8);
-    border-color: rgba(79, 172, 254, 0.4);
-    transform: translateY(-1px);
-}
-
-.module-item.available {
-    border-color: #10b981;
-}
-
-.module-item.active {
-    background: rgba(16, 185, 129, 0.1);
-    border-color: #10b981;
-}
-
-.module-item.insufficient-food {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.module-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 6px;
-}
-
-.module-name {
-    font-weight: 600;
-    color: #f8fafc;
-    font-size: 14px;
-}
-
-.module-cost {
-    color: #f59e0b;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.module-description {
-    color: #94a3b8;
-    font-size: 12px;
-    line-height: 1.4;
-    margin-bottom: 6px;
-}
-
-.module-requirements {
-    color: #ef4444;
-    font-size: 11px;
-    font-style: italic;
-}
-
-.module-status {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    font-size: 16px;
-}
+/* Module-related styles removed */
 
 /* ===== CONTEXT MENU ===== */
 .context-menu {
@@ -868,27 +680,7 @@ body {
     padding: 24px;
 }
 
-.help-content h3 {
-    color: #4facfe;
-    margin-bottom: 12px;
-    font-size: 18px;
-    font-weight: 600;
-}
-
-.help-content ul {
-    margin-bottom: 24px;
-    padding-left: 20px;
-}
-
-.help-content li {
-    margin-bottom: 8px;
-    color: #e2e8f0;
-    line-height: 1.6;
-}
-
-.help-content strong {
-    color: #4facfe;
-}
+/* help/tutorial styles removed */
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
@@ -916,9 +708,7 @@ body {
         font-size: 18px;
     }
     
-    .module-actions {
-        grid-template-columns: 1fr;
-    }
+    /* module actions removed */
 }
 
 @media (max-width: 1200px) {
@@ -930,9 +720,7 @@ body {
         grid-template-columns: 1fr;
     }
     
-    .module-grid {
-        grid-template-columns: 1fr;
-    }
+    /* module grid removed */
 }
 
 /* ===== ANIMATIONS ===== */
@@ -965,44 +753,7 @@ body {
 }
 
 /* ===== ENHANCED ANIMATIONS ===== */
-@keyframes moduleSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes moduleSlideOut {
-    from {
-        opacity: 1;
-        transform: translateY(0);
-    }
-    to {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-}
-
-@keyframes pulseGlow {
-    0%, 100% {
-        box-shadow: 0 0 5px rgba(79, 172, 254, 0.3);
-    }
-    50% {
-        box-shadow: 0 0 20px rgba(79, 172, 254, 0.6);
-    }
-}
-
-.module-item.new-module {
-    animation: moduleSlideIn 0.3s ease;
-}
-
-.module-item.removing-module {
-    animation: moduleSlideOut 0.3s ease forwards;
-}
+/* Module-related animations removed */
 
 /* ===== SCROLLBAR STYLING ===== */
 .control-panel::-webkit-scrollbar {
@@ -1022,20 +773,4 @@ body {
     background: rgba(79, 172, 254, 0.6);
 }
 
-.module-library::-webkit-scrollbar {
-    width: 4px;
-}
-
-.module-library::-webkit-scrollbar-track {
-    background: rgba(79, 172, 254, 0.05);
-    border-radius: 2px;
-}
-
-.module-library::-webkit-scrollbar-thumb {
-    background: rgba(79, 172, 254, 0.3);
-    border-radius: 2px;
-}
-
-.module-library::-webkit-scrollbar-thumb:hover {
-    background: rgba(79, 172, 254, 0.5);
-}
+/* Module library scrollbar removed */

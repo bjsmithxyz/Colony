@@ -16,8 +16,6 @@ export class SimulationEventHandler {
     setupEventListeners() {
         this.setupCanvasEvents();
         this.setupUIControls();
-        this.setupModuleBridge();
-        this.setupHelp();
         this.setupTooltips();
     }
 
@@ -87,17 +85,7 @@ export class SimulationEventHandler {
             this.simulation.resetSimulation();
         });
 
-        // Spawn button
-        const spawnBtn = document.getElementById('spawnBtn');
-        spawnBtn?.addEventListener('click', () => {
-            if (this.simulation.selectedTarget?.canSpawn()) {
-                const success = this.simulation.selectedTarget.spawn();
-                if (success) {
-                    this.simulation.updateNodeControls();
-                    this.simulation.updateStats();
-                }
-            }
-        });
+    // Spawn UI removed: spawning is automated based on node food
 
         // Statistics panel toggle
         const statsToggle = document.getElementById('statsToggle');
@@ -109,43 +97,7 @@ export class SimulationEventHandler {
     }
 
     setupModuleBridge() {
-        // Enhanced UI module events
-        document.addEventListener('moduleAdded', (e) => {
-            this.simulation.handleModuleAdded(e.detail);
-        });
-        
-        document.addEventListener('moduleRemoved', (e) => {
-            this.simulation.handleModuleRemoved(e.detail);
-        });
-
-        // Context menu actions
-        this.contextMenu?.addEventListener('click', (e) => {
-            const action = e.target.dataset.action;
-            if (action && this.contextMenuTarget) {
-                this.handleContextMenuAction(action, this.contextMenuTarget);
-                this.hideContextMenu();
-            }
-        });
-    }
-
-    setupHelp() {
-        const helpBtn = document.getElementById('helpBtn');
-        const helpModal = document.getElementById('helpModal');
-        const closeHelpModal = document.getElementById('closeHelpModal');
-        
-        helpBtn?.addEventListener('click', () => {
-            if (helpModal) helpModal.style.display = 'flex';
-        });
-        
-        closeHelpModal?.addEventListener('click', () => {
-            if (helpModal) helpModal.style.display = 'none';
-        });
-        
-        helpModal?.addEventListener('click', (e) => {
-            if (e.target === helpModal) {
-                helpModal.style.display = 'none';
-            }
-        });
+        // No-op (subsystem removed)
     }
 
     setupTooltips() {
@@ -225,9 +177,7 @@ export class SimulationEventHandler {
             case 'duplicate':
                 this.simulation.duplicateNode(node);
                 break;
-            case 'clear-modules':
-                this.simulation.clearNodeModules(node);
-                break;
+            /* clear-modules action removed */
             case 'info':
                 this.simulation.showNodeInfo(node);
                 break;
@@ -236,13 +186,7 @@ export class SimulationEventHandler {
 
     showTooltip(x, y, node) {
         const individualCount = this.simulation.individuals.filter(ind => ind.parentNode === node).length;
-        const modules = this.simulation.moduleManager.getModulesForTarget(node);
-        const moduleCount = modules.length;
-        
-        let content = `Food: ${node.food}<br>Individuals: ${individualCount}`;
-        if (moduleCount > 0) {
-            content += `<br>Modules: ${moduleCount}`;
-        }
+    let content = `Food: ${node.food}<br>Individuals: ${individualCount}`;
         
         this.tooltip.innerHTML = content;
         this.tooltip.style.display = 'block';

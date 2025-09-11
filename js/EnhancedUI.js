@@ -1,12 +1,12 @@
 /**
  * Enhanced UI Management System
- * Handles tabbed interfaces, drag-and-drop modules, real-time charts, and animations
+ * Handles tabbed interfaces, real-time charts, and animations
  */
 
 class EnhancedUI {
     constructor() {
         this.charts = {};
-        this.draggedModule = null;
+    // no drag state required (drag/drop removed)
         this.chartData = {
             population: [],
             food: [],
@@ -36,7 +36,7 @@ class EnhancedUI {
     }
     
     /**
-     * Initialize tabbed interfaces for statistics and modules
+    * Initialize tabbed interfaces for statistics
      */
     initializeTabs() {
         // Statistics tabs
@@ -69,27 +69,7 @@ class EnhancedUI {
             });
         });
         
-        // Module tabs
-        const moduleTabs = document.querySelectorAll('.module-tab');
-        const moduleContents = document.querySelectorAll('.module-tab-content');
-        
-        moduleTabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const targetTab = tab.dataset.tab;
-                
-                // Update active tab
-                moduleTabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                
-                // Update active content
-                moduleContents.forEach(content => {
-                    content.classList.remove('active');
-                    if (content.id === targetTab + 'Modules') {
-                        content.classList.add('active');
-                    }
-                });
-            });
-        });
+    // Module UI removed
     }
     
     /**
@@ -245,116 +225,10 @@ class EnhancedUI {
     }
     
     /**
-     * Initialize drag and drop functionality for modules
+     * Drag/drop functionality removed — placeholder kept for compatibility
      */
     initializeDragAndDrop() {
-        const moduleItems = document.querySelectorAll('.module-item.draggable');
-        const moduleList = document.getElementById('moduleList');
-        
-        moduleItems.forEach(item => {
-            item.addEventListener('dragstart', (e) => {
-                this.draggedModule = {
-                    type: item.dataset.module,
-                    element: item.cloneNode(true)
-                };
-                item.classList.add('dragging');
-                e.dataTransfer.effectAllowed = 'copy';
-            });
-            
-            item.addEventListener('dragend', () => {
-                item.classList.remove('dragging');
-            });
-        });
-        
-        if (moduleList) {
-            moduleList.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'copy';
-                moduleList.classList.add('drag-over');
-            });
-            
-            moduleList.addEventListener('dragleave', (e) => {
-                if (!moduleList.contains(e.relatedTarget)) {
-                    moduleList.classList.remove('drag-over');
-                }
-            });
-            
-            moduleList.addEventListener('drop', (e) => {
-                e.preventDefault();
-                moduleList.classList.remove('drag-over');
-                
-                if (this.draggedModule) {
-                    this.addModuleToActive(this.draggedModule.type);
-                    this.draggedModule = null;
-                }
-            });
-        }
-    }
-    
-    /**
-     * Add a module to the active list
-     */
-    addModuleToActive(moduleType) {
-        const moduleList = document.getElementById('moduleList');
-        const placeholder = moduleList.querySelector('.module-placeholder');
-        
-        // Remove placeholder if it exists
-        if (placeholder && moduleList.children.length === 1) {
-            placeholder.remove();
-        }
-        
-        // Create active module element
-        const activeModule = document.createElement('div');
-        activeModule.className = 'active-module-item new-module';
-        activeModule.innerHTML = `
-            <div class="module-icon">${this.getModuleIcon(moduleType)}</div>
-            <div class="active-module-info">
-                <div class="active-module-title">${this.getModuleName(moduleType)}</div>
-                <div class="active-module-status">Active</div>
-            </div>
-            <div class="active-module-actions">
-                <button class="module-action-btn remove" title="Remove Module">
-                    <span>×</span>
-                </button>
-            </div>
-        `;
-        
-        // Add remove functionality
-        const removeBtn = activeModule.querySelector('.remove');
-        removeBtn.addEventListener('click', () => {
-            activeModule.classList.add('removing-module');
-            setTimeout(() => {
-                activeModule.remove();
-                this.checkModuleListPlaceholder();
-            }, 300);
-        });
-        
-        moduleList.appendChild(activeModule);
-        
-        // Trigger animation
-        setTimeout(() => {
-            activeModule.classList.remove('new-module');
-        }, 300);
-        
-        // Emit event for simulation to handle
-        this.dispatchModuleEvent('moduleAdded', { type: moduleType });
-    }
-    
-    /**
-     * Check if module list needs placeholder
-     */
-    checkModuleListPlaceholder() {
-        const moduleList = document.getElementById('moduleList');
-        if (moduleList.children.length === 0) {
-            const placeholder = document.createElement('div');
-            placeholder.className = 'module-placeholder';
-            placeholder.innerHTML = `
-                <span class="placeholder-icon">🎯</span>
-                <p>Select a node to see active modules</p>
-                <small>Drag modules here to activate</small>
-            `;
-            moduleList.appendChild(placeholder);
-        }
+        // No-op
     }
     
     /**
@@ -368,7 +242,7 @@ class EnhancedUI {
         });
         
         // Add hover effects to interactive elements
-        const interactiveElements = document.querySelectorAll('.action-btn, .module-item, .stats-tab, .module-tab');
+    const interactiveElements = document.querySelectorAll('.action-btn, .stats-tab');
         interactiveElements.forEach(element => {
             element.addEventListener('mouseenter', () => {
                 element.style.transform = 'translateY(-1px)';
@@ -381,9 +255,9 @@ class EnhancedUI {
     }
     
     /**
-     * Get module icon by type
+     * Get icon by type
      */
-    getModuleIcon(type) {
+    getIcon(type) {
         const icons = {
             speed: '⚡',
             efficiency: '⚙️',
@@ -402,9 +276,9 @@ class EnhancedUI {
     }
     
     /**
-     * Get module name by type
+     * Get name by type
      */
-    getModuleName(type) {
+    getName(type) {
         const names = {
             speed: 'Speed',
             efficiency: 'Efficiency',
@@ -423,11 +297,10 @@ class EnhancedUI {
     }
     
     /**
-     * Dispatch module events for simulation integration
+     * Dispatch events for simulation integration (disabled)
      */
-    dispatchModuleEvent(eventType, data) {
-        const event = new CustomEvent(eventType, { detail: data });
-        document.dispatchEvent(event);
+    dispatchEvent(eventType, data) {
+        // No-op
     }
     
     /**
