@@ -89,8 +89,6 @@ body {
     height: 100vh;
 }
 
-/* header and top-banner removed to simplify UI */
-
 .main-content {
     display: flex;
     flex: 1;
@@ -108,17 +106,17 @@ body {
 }
 
 #simulationCanvas {
-    border: 2px solid rgba(79, 172, 254, 0.3);
-    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    border-radius: 0; /* square corners */
     background: #0a0a1a;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    /* box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); */
     cursor: crosshair;
     transition: all 0.2s ease;
 }
 
 #simulationCanvas:hover {
-    border-color: rgba(79, 172, 254, 0.5);
-    box-shadow: 0 8px 32px rgba(79, 172, 254, 0.1);
+    border-color: rgba(255, 255, 255, 1);
+    box-shadow: 0 8px 32px rgba(255, 255, 255, 0.02);
 }
 
 .canvas-overlay {
@@ -182,25 +180,56 @@ body {
 }
 
 .fps-badge {
-    background: rgba(15, 15, 35, 0.9);
-    backdrop-filter: blur(10px);
-    color: #10b981;
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-weight: 600;
+    background: transparent;
+    color: #4facfe; /* same accent color used in stats */
+    padding: 0;
+    border-radius: 0;
+    font-weight: 700;
+    font-size: 13px; /* match overview stats */
+    border: none;
+    box-shadow: none;
+    z-index: 2000;
+    pointer-events: none;
+}
+
+/* Overview stats simple list positioned top-right outside canvas */
+.overview-stats {
+    position: fixed; /* will be adjusted via JS */
+    width: 200px;
+    background: transparent;
+    color: #e2e8f0;
+    pointer-events: none;
+    text-align: left;
     font-size: 13px;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    z-index: 2000;
+}
+.overview-stats .overview-line {
+    margin-bottom: 6px;
+    color: #94a3b8;
+    font-size: 13px;
+}
+.overview-stats .overview-line span {
+    color: #4facfe;
+    font-weight: 700;
+}
+
+/* Floating speed control placed bottom-center outside canvas */
+.speed-control-floating {
+    position: fixed; /* positioned by JS */
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    pointer-events: auto;
+    background: rgba(15,15,35,0.6);
+    padding: 8px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(79, 172, 254, 0.08);
+    z-index: 2000;
 }
 
 /* ===== CONTROL PANEL ===== */
 .control-panel {
-    width: 384px; /* Increased by 20% from 320px */
-    background: rgba(15, 15, 35, 0.95);
-    backdrop-filter: blur(10px);
-    border-left: 1px solid rgba(79, 172, 254, 0.2);
-    overflow-y: auto;
-    overflow-x: hidden;
+    display: none; /* removed right-side control panel */
 }
 
 .panel-content {
@@ -294,88 +323,18 @@ body {
 }
 
 /* ===== STATISTICS ===== */
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-}
-
-.stat-item {
-    text-align: center;
-    padding: 16px;
-    background: rgba(79, 172, 254, 0.05);
-    border: 1px solid rgba(79, 172, 254, 0.1);
-    border-radius: 8px;
-    transition: all 0.2s ease;
-}
-
-.stat-item:hover {
-    background: rgba(79, 172, 254, 0.1);
-    border-color: rgba(79, 172, 254, 0.3);
-}
-
-.stat-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: #4facfe;
-    line-height: 1;
-    margin-bottom: 4px;
-}
-
-.stat-label {
-    font-size: 12px;
-    color: #94a3b8;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
+.stats-grid { display: none; }
+.stat-item { display:none; }
+.stat-value { display:none; }
+.stat-label { display:none; }
 
 /* ===== ENHANCED STATISTICS TABS ===== */
-.stats-tabs {
-    display: flex;
-    margin-bottom: 16px;
-    border-bottom: 1px solid rgba(79, 172, 254, 0.2);
-}
-
-.stats-tab {
-    flex: 1;
-    padding: 8px 12px;
-    border: none;
-    background: transparent;
-    color: #94a3b8;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border-bottom: 2px solid transparent;
-}
-
-.stats-tab:hover {
-    color: #e2e8f0;
-    background: rgba(79, 172, 254, 0.05);
-}
-
-.stats-tab.active {
-    color: #4facfe;
-    border-bottom-color: #4facfe;
-}
-
-.stats-content {
-    min-height: 200px;
-}
-
-.stats-tab-content {
-    display: none;
-    animation: fadeIn 0.3s ease;
-}
-
-.stats-tab-content.active {
-    display: block;
-}
+.stats-tabs { display:none; }
+.stats-tab { display:none; }
+.stats-content { display:none; }
+.stats-tab-content { display:none; }
 
 /* ===== MODULE TABS ===== */
-/* Module UI removed */
-
 /* ===== CONTROL GROUP ===== */
 .control-group {
     margin-bottom: 20px;
@@ -464,9 +423,7 @@ body {
     color: #4facfe;
 }
 
-.checkbox-label input[type="checkbox"] {
-    display: none;
-}
+.checkbox-label input[type="checkbox"] { display:none; }
 
 .checkbox-custom {
     width: 18px;
@@ -546,8 +503,6 @@ body {
 .btn-icon {
     font-size: 16px;
 }
-
-/* Module-related styles removed */
 
 /* ===== CONTEXT MENU ===== */
 .context-menu {
@@ -680,8 +635,6 @@ body {
     padding: 24px;
 }
 
-/* help/tutorial styles removed */
-
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
     .main-content {
@@ -695,32 +648,18 @@ body {
         border-top: 1px solid rgba(79, 172, 254, 0.2);
     }
     
-    .stats-grid {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 12px;
-    }
+    .stats-grid { display:none; }
     
-    .stat-item {
-        padding: 12px 8px;
-    }
-    
-    .stat-value {
-        font-size: 18px;
-    }
+    .stat-item { display:none; }
     
     /* module actions removed */
 }
 
 @media (max-width: 1200px) {
-    .stats-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-    
-    .performance-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    /* module grid removed */
+    /* hide floating controls on small screens */
+    .overview-stats { right: 8px; top: -6px; width: 160px; }
+    .fps-badge { right: -8px; }
+    .speed-control-floating { bottom: -56px; }
 }
 
 /* ===== ANIMATIONS ===== */
@@ -753,8 +692,6 @@ body {
 }
 
 /* ===== ENHANCED ANIMATIONS ===== */
-/* Module-related animations removed */
-
 /* ===== SCROLLBAR STYLING ===== */
 .control-panel::-webkit-scrollbar {
     width: 6px;
@@ -772,5 +709,3 @@ body {
 .control-panel::-webkit-scrollbar-thumb:hover {
     background: rgba(79, 172, 254, 0.6);
 }
-
-/* Module library scrollbar removed */

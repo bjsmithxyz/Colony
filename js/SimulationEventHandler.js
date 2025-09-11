@@ -72,12 +72,6 @@ export class SimulationEventHandler {
             }
         });
 
-        // LOD toggle
-        const lodToggle = document.getElementById('lodToggle');
-        lodToggle?.addEventListener('change', (e) => {
-            this.simulation.lodEnabled = e.target.checked;
-            console.log(`LOD ${this.simulation.lodEnabled ? 'enabled' : 'disabled'}`);
-        });
 
         // Reset button
         const resetBtn = document.getElementById('resetBtn');
@@ -87,13 +81,7 @@ export class SimulationEventHandler {
 
     // Spawn UI removed: spawning is automated based on node food
 
-        // Statistics panel toggle
-        const statsToggle = document.getElementById('statsToggle');
-        const statsContent = document.getElementById('stats');
-        statsToggle?.addEventListener('click', () => {
-            statsToggle.classList.toggle('collapsed');
-            statsContent?.classList.toggle('collapsed');
-        });
+        // Statistics panel and LOD controls removed
     }
 
     setupModuleBridge() {

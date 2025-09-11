@@ -7,7 +7,7 @@ export class TrailSystem {
         this.canvas.height = height;
         this.ctx = this.canvas.getContext('2d', { alpha: true });
         this.ctx.globalCompositeOperation = 'source-over';
-        this.fadeRate = 0.986; // Reduced fade rate by 30% (was 0.98, now fades 30% slower)
+        this.fadeRate = 0.95;
     }
 
     addPoint(x, y, color) {

@@ -40,16 +40,7 @@ export class PerformanceMonitor {
         console.log(`Total Pixels: ${totalPixels}`);
         console.log(`Estimated Memory: ${estimatedMemory.toFixed(1)}KB`);
         
-        // LOD Statistics
-        if (this.simulation.lodEnabled) {
-            const lodStats = this.simulation.levelOfDetail.getStats();
-            console.log(`LOD Enabled: High=${lodStats.highLOD}, Medium=${lodStats.mediumLOD}, Low=${lodStats.lowLOD}, Culled=${lodStats.culled}`);
-            console.log(`Culling Ratio: ${lodStats.cullingRatio}`);
-            console.log(`LOD Distances: High=${lodStats.lodDistances.HIGH}, Medium=${lodStats.lodDistances.MEDIUM}, Low=${lodStats.lodDistances.LOW}`);
-            
-            // Automatically adjust LOD distances based on performance
-            this.simulation.levelOfDetail.adjustLODDistances({ fps: this.simulation.renderer.fps });
-        }
+        // LOD removed — no LOD-related metrics
         
         console.log('==========================');
         

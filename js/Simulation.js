@@ -6,7 +6,6 @@ import { TrailSystem } from './TrailSystem.js';
 import { SpatialGrid } from './SpatialGrid.js';
 import { ObjectPool } from './ObjectPool.js';
 import { DirtyRectManager } from './DirtyRectManager.js';
-import { LevelOfDetail } from './LevelOfDetail.js';
 import { SimulationEventHandler } from './SimulationEventHandler.js';
 import { SimulationRenderer } from './SimulationRenderer.js';
 import { ContextMenuManager } from './ContextMenuManager.js';
@@ -67,12 +66,10 @@ export class Simulation {
     initializeSystemsAndManagers() {
         // Core systems
         this.trailSystem = new TrailSystem(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT);
-    // Module system removed: no ModuleManager
-    this.moduleManager = null;
+    // Module system removed
         this.spatialGrid = new SpatialGrid(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 32);
         this.dirtyRectManager = new DirtyRectManager(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 64);
-        this.levelOfDetail = new LevelOfDetail(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT);
-        this.lodEnabled = false; // Default to off
+    // LevelOfDetail and LOD controls removed
         
         // Object pooling
         this.individualPool = new ObjectPool(
@@ -258,92 +255,26 @@ export class Simulation {
 
     // UI update methods
     updateStats() {
-        // Update basic statistics displays
-        document.getElementById('nodeCount').textContent = this.nodes.length;
-        document.getElementById('individualCount').textContent = this.individuals.length;
-        
+        // Update simplified overview stats (floating top-right)
+        const ovNode = document.getElementById('ov_nodeCount');
+        const ovInd = document.getElementById('ov_individualCount');
+        const ovFood = document.getElementById('ov_totalFood');
+        const ovCollected = document.getElementById('ov_foodCollected');
+
         const totalFood = this.nodes.reduce((sum, node) => sum + node.food, 0);
-        document.getElementById('totalFood').textContent = totalFood;
-        document.getElementById('foodCollected').textContent = this.totalFoodCollected;
-        
-        // Update enhanced UI charts if available
-        if (window.enhancedUI) {
-            const statsData = {
-                nodeCount: this.nodes.length,
-                individualCount: this.individuals.length,
-                totalFood: totalFood,
-                foodCollected: this.totalFoodCollected
-            };
-            window.enhancedUI.updateChartData(statsData);
-        }
+
+        if (ovNode) ovNode.textContent = this.nodes.length;
+        if (ovInd) ovInd.textContent = this.individuals.length;
+        if (ovFood) ovFood.textContent = totalFood;
+        if (ovCollected) ovCollected.textContent = this.totalFoodCollected;
         
     // Node controls UI removed; nothing to update here.
     }
 
     updateModuleUI() {
-        // Module UI removed. Clear module list if present.
-        const moduleList = document.getElementById('moduleList');
-        if (moduleList) {
-            moduleList.innerHTML = '<p class="placeholder">Modules are not available in this build.</p>';
-        }
+        // Module system removed — nothing to update in UI
     }
-
-    renderModuleUI(moduleList) {
-    // Module UI removed - no-op
-    moduleList.innerHTML = '<p class="placeholder">Modules removed</p>';
-    }
-
-    groupModulesByType(modules) {
-        const modulesByType = {
-            enhancement: [],
-            visual: [],
-            behavior: []
-        };
-        
-        modules.forEach(module => {
-            if (modulesByType[module.type]) {
-                modulesByType[module.type].push(module);
-            }
-        });
-        
-        return modulesByType;
-    }
-
-    renderModuleCategories(moduleList, modulesByType, activeModules) {
-        Object.entries(modulesByType).forEach(([type, modules]) => {
-            if (modules.length === 0) return;
-            
-            const categoryHeader = document.createElement('div');
-            categoryHeader.className = 'module-category';
-            categoryHeader.innerHTML = `<h4>${type.charAt(0).toUpperCase() + type.slice(1)} Modules</h4>`;
-            moduleList.appendChild(categoryHeader);
-            
-            modules.forEach(module => {
-                const moduleElement = this.createModuleElement(module, activeModules, type);
-                moduleList.appendChild(moduleElement);
-            });
-        });
-    }
-
-    createModuleElement(module, activeModules, type) {
-    // Module elements no longer created
-    const moduleElement = document.createElement('div');
-    moduleElement.className = 'module-removed';
-    moduleElement.textContent = 'Module UI removed';
-    return moduleElement;
-    }
-
-    setupModuleElementEvents(moduleElement, module, isActive) {
-    // Module interactions removed
-    }
-
-    setupModuleDragAndDrop(moduleElement, module) {
-    // Drag-and-drop removed
-    }
-    
-    setupCanvasDropTarget() {
-    // Canvas drop target for modules removed
-    }
+    // Module-related UI and drag/drop removed from this build.
 
     // updateNodeControls removed: UI removed and spawning is automated in Node.storeFood().
 

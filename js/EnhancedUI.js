@@ -6,68 +6,67 @@
 class EnhancedUI {
     constructor() {
         this.charts = {};
-    // no drag state required (drag/drop removed)
-        this.chartData = {
-            population: [],
-            food: [],
-            timestamps: []
-        };
-        this.maxDataPoints = 50;
-        
-        // Wait for Chart.js to load before initializing
-        if (typeof Chart !== 'undefined') {
-            this.init();
-        } else {
-            // Wait for Chart.js to load
-            const checkChart = setInterval(() => {
-                if (typeof Chart !== 'undefined') {
-                    clearInterval(checkChart);
-                    this.init();
-                }
-            }, 100);
-        }
+        // no drag state required (drag/drop removed)
+        // Chart.js and advanced charts removed — minimal UI only
+        this.init();
     }
     
     init() {
         this.initializeTabs();
         this.initializeDragAndDrop();
         this.initializeAnimations();
-        // Chart initialization is delayed until the charts tab is first opened
+        // Position floating UI elements (FPS, overview stats, speed control)
+        this.positionFloatingUI();
+        // Reposition on resize
+        window.addEventListener('resize', () => this.positionFloatingUI());
+        window.addEventListener('scroll', () => this.positionFloatingUI());
+    }
+
+    positionFloatingUI() {
+        const canvas = document.getElementById('simulationCanvas');
+        if (!canvas) return;
+
+        // Use requestAnimationFrame to ensure layout measurements are accurate
+        window.requestAnimationFrame(() => {
+            const rect = canvas.getBoundingClientRect();
+            const outsideOffset = 35; // px outside the canvas edge
+
+            const fps = document.getElementById('fpsIndicator');
+            const stats = document.getElementById('overviewStats');
+            const speed = document.getElementById('speedControlFloating');
+
+            if (fps) {
+                // place FPS at the absolute top-right of the viewport
+                fps.style.position = 'fixed';
+                fps.style.right = `12px`;
+                fps.style.top = `8px`;
+                fps.style.left = '';
+                fps.style.transform = '';
+            }
+
+            if (stats) {
+                stats.style.position = 'fixed';
+                stats.style.left = `${rect.right + outsideOffset}px`;
+                stats.style.top = `${Math.max(8, rect.top)}px`;
+                stats.style.transform = '';
+            }
+
+            if (speed) {
+                speed.style.position = 'fixed';
+                // center horizontally relative to canvas
+                const centerX = rect.left + rect.width / 2;
+                speed.style.left = `${centerX}px`;
+                speed.style.top = `${rect.bottom + outsideOffset}px`;
+                speed.style.transform = 'translateX(-50%)';
+            }
+        });
     }
     
     /**
     * Initialize tabbed interfaces for statistics
      */
     initializeTabs() {
-        // Statistics tabs
-        const statsTabs = document.querySelectorAll('.stats-tab');
-        const statsContents = document.querySelectorAll('.stats-tab-content');
-        
-        statsTabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const targetTab = tab.dataset.tab;
-                
-                // Update active tab
-                statsTabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                
-                // Update active content
-                statsContents.forEach(content => {
-                    content.classList.remove('active');
-                    if (content.id === targetTab) {
-                        content.classList.add('active');
-                    }
-                });
-                
-                // Initialize chart if charts tab is selected
-                if (targetTab === 'charts' && (!this.charts.population || typeof Chart === 'undefined')) {
-                    // Delay chart initialization to ensure DOM is ready
-                    setTimeout(() => {
-                        this.initializeCharts();
-                    }, 100);
-                }
-            });
-        });
+        // Tabs removed; keep placeholder to avoid errors if classes exist
         
     // Module UI removed
     }
@@ -76,152 +75,21 @@ class EnhancedUI {
      * Initialize Chart.js charts for real-time statistics
      */
     initializeCharts() {
-        const canvas = document.getElementById('populationChart');
-        if (!canvas || this.charts.population || typeof Chart === 'undefined') return;
-        
-        const ctx = canvas.getContext('2d');
-        
-        try {
-            this.charts.population = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: this.chartData.timestamps,
-                    datasets: [
-                        {
-                            label: 'Population',
-                            data: this.chartData.population,
-                            borderColor: '#4facfe',
-                            backgroundColor: 'rgba(79, 172, 254, 0.1)',
-                            borderWidth: 2,
-                            fill: true,
-                            tension: 0.3,
-                            pointRadius: 2,
-                            pointHoverRadius: 4
-                        },
-                        {
-                            label: 'Food Collected',
-                            data: this.chartData.food,
-                            borderColor: '#00f2fe',
-                            backgroundColor: 'rgba(0, 242, 254, 0.1)',
-                            borderWidth: 2,
-                            fill: true,
-                            tension: 0.3,
-                            pointRadius: 2,
-                            pointHoverRadius: 4
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        x: {
-                            display: false,
-                            grid: {
-                                display: false
-                            }
-                        },
-                        y: {
-                            display: true,
-                            grid: {
-                                color: 'rgba(79, 172, 254, 0.1)'
-                            },
-                            ticks: {
-                                color: '#64748b',
-                                font: {
-                                    size: 10
-                                }
-                            }
-                        }
-                    },
-                    elements: {
-                        point: {
-                            hoverBackgroundColor: '#4facfe'
-                        }
-                    },
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    }
-                }
-            });
-            
-            // Chart toggle controls
-            const showPopulation = document.getElementById('showPopulation');
-            const showFood = document.getElementById('showFood');
-            
-            if (showPopulation) {
-                showPopulation.addEventListener('change', (e) => {
-                    this.charts.population.data.datasets[0].hidden = !e.target.checked;
-                    this.charts.population.update();
-                });
-            }
-            
-            if (showFood) {
-                showFood.addEventListener('change', (e) => {
-                    this.charts.population.data.datasets[1].hidden = !e.target.checked;
-                    this.charts.population.update();
-                });
-            }
-        } catch (error) {
-            console.warn('Failed to initialize Chart.js:', error);
-        }
+        // Charts removed
     }
     
     /**
      * Update chart data with new statistics
      */
     updateChartData(stats) {
-        if (!this.charts.population || typeof Chart === 'undefined') {
-            // If chart is not available, just store the data for when it becomes available
-            this.storeChartData(stats);
-            return;
-        }
-        
-        const timestamp = new Date().toLocaleTimeString();
-        
-        // Add new data point
-        this.chartData.timestamps.push(timestamp);
-        this.chartData.population.push(stats.individualCount || 0);
-        this.chartData.food.push(stats.foodCollected || 0);
-        
-        // Limit data points to prevent memory issues
-        if (this.chartData.timestamps.length > this.maxDataPoints) {
-            this.chartData.timestamps.shift();
-            this.chartData.population.shift();
-            this.chartData.food.shift();
-        }
-        
-        try {
-            // Update chart
-            this.charts.population.update('none'); // No animation for real-time updates
-        } catch (error) {
-            console.warn('Error updating chart:', error);
-        }
+        // Charts removed — no-op
     }
     
     /**
      * Store chart data for later use when chart becomes available
      */
     storeChartData(stats) {
-        const timestamp = new Date().toLocaleTimeString();
-        
-        // Add new data point
-        this.chartData.timestamps.push(timestamp);
-        this.chartData.population.push(stats.individualCount || 0);
-        this.chartData.food.push(stats.foodCollected || 0);
-        
-        // Limit data points to prevent memory issues
-        if (this.chartData.timestamps.length > this.maxDataPoints) {
-            this.chartData.timestamps.shift();
-            this.chartData.population.shift();
-            this.chartData.food.shift();
-        }
+        // Charts removed — not storing chart data
     }
     
     /**
@@ -242,7 +110,7 @@ class EnhancedUI {
         });
         
         // Add hover effects to interactive elements
-    const interactiveElements = document.querySelectorAll('.action-btn, .stats-tab');
+    const interactiveElements = document.querySelectorAll('.action-btn');
         interactiveElements.forEach(element => {
             element.addEventListener('mouseenter', () => {
                 element.style.transform = 'translateY(-1px)';
@@ -307,20 +175,7 @@ class EnhancedUI {
      * Update performance metrics display
      */
     updatePerformanceMetrics(metrics) {
-        const currentFPS = document.getElementById('currentFPS');
-        const avgFPS = document.getElementById('avgFPS');
-        const lodLevel = document.getElementById('lodLevel');
-        const memoryUsage = document.getElementById('memoryUsage');
-        
-        if (currentFPS) currentFPS.textContent = Math.round(metrics.currentFPS || 0);
-        if (avgFPS) avgFPS.textContent = Math.round(metrics.avgFPS || 0);
-        if (lodLevel) lodLevel.textContent = metrics.lodLevel || 'High';
-        if (memoryUsage) {
-            const memory = metrics.memoryUsage;
-            if (memory) {
-                memoryUsage.textContent = `${(memory / 1024 / 1024).toFixed(1)}MB`;
-            }
-        }
+        // Performance UI removed — do not update DOM here
     }
     
     /**

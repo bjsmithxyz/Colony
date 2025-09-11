@@ -46,14 +46,8 @@ export class SimulationRenderer {
         
         this.simulation.trailSystem.render(this.ctx);
         
-        // Render with LOD system if enabled
-        if (this.simulation.lodEnabled) {
-            this.simulation.levelOfDetail.renderFoodSources(this.ctx, this.simulation.foodSources);
-            this.simulation.levelOfDetail.renderNodes(this.ctx, this.simulation.nodes);
-            this.simulation.levelOfDetail.renderIndividuals(this.ctx, this.simulation.individuals);
-        } else {
-            this.renderEntities();
-        }
+        // Render entities (LOD removed)
+        this.renderEntities();
     }
 
     renderEntities() {
@@ -227,8 +221,8 @@ export class SimulationRenderer {
             const performanceMetrics = {
                 currentFPS: this.fps,
                 avgFPS: this.avgFps,
-                lodLevel: this.simulation.levelOfDetail ? this.simulation.levelOfDetail.getCurrentQuality() : 'High',
-                memoryUsage: performance.memory ? performance.memory.usedJSHeapSize : null
+                lodLevel: 'High',
+                memoryUsage: performance && performance.memory ? performance.memory.usedJSHeapSize : null
             };
             window.enhancedUI.updatePerformanceMetrics(performanceMetrics);
         }
