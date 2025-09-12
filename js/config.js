@@ -1,7 +1,7 @@
 export const CONFIG = {
     MAP: {
-        WIDTH: 512,
-        HEIGHT: 512,
+        WIDTH: 1000,
+        HEIGHT: 1000,
         BACKGROUND_COLOR: '#1a1a1a'
     },
     NODE: {

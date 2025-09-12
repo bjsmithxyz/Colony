@@ -22,7 +22,11 @@ export class Node {
     this.spawnCooldown = 5000; // cooldown in milliseconds between spawns
         
         // Initialize pixel array for organic shape
-        this.pixels = [];
+    this.pixels = [];
+    // Fast lookup set for pixel existence, keys are "dx,dy"
+    this.pixelSet = new Set();
+    // Edge/frontier pixels for faster growth start selection
+    this.edgePixels = new Set();
         
         // Initialize specialized managers
         this.growthManager = new NodeGrowthManager(this);
@@ -34,6 +38,11 @@ export class Node {
 
         // Generate initial organic shape
         this.shapeGenerator.generateOrganicShape();
+        // ensure pixelSet and edgePixels are populated if shapeGenerator used direct pushes
+        for (const p of this.pixels) {
+            this.pixelSet.add(`${p.dx},${p.dy}`);
+        }
+        this._recomputeEdgePixels();
         this.markRendererDirty();
     }
 
@@ -41,6 +50,56 @@ export class Node {
         this.rendererDirty = true;
         // also notify renderer instance if present
         if (this.renderer) this.renderer._markDirty && this.renderer._markDirty();
+    }
+
+    hasPixel(dx, dy) {
+        return this.pixelSet.has(`${dx},${dy}`);
+    }
+
+    addPixel(dx, dy) {
+        const key = `${dx},${dy}`;
+        if (this.pixelSet.has(key)) return false;
+        this.pixelSet.add(key);
+        this.pixels.push({ dx, dy });
+        // update edgePixels: new pixel may create new frontier entries around it
+        const neigh = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
+        let isEdge = false;
+        for (const [ox, oy] of neigh) {
+            const nk = `${dx+ox},${dy+oy}`;
+            if (!this.pixelSet.has(nk)) {
+                isEdge = true;
+                // mark neighbor as edge candidate (if neighbor is existing pixel, ensure it's marked)
+                const neighborKey = `${dx+ox},${dy+oy}`;
+                if (this.pixelSet.has(neighborKey)) this.edgePixels.add(neighborKey);
+            }
+        }
+        if (isEdge) this.edgePixels.add(key);
+        // newly filled pixel might remove edge status from neighbors
+        for (const [ox, oy] of neigh) {
+            const nk = `${dx+ox},${dy+oy}`;
+            if (this.pixelSet.has(nk)) {
+                // check if neighbor still has any empty neighbor; if not remove from edgePixels
+                let stillEdge = false;
+                for (const [ax, ay] of neigh) {
+                    const ck = `${dx+ox+ax},${dy+oy+ay}`;
+                    if (!this.pixelSet.has(ck)) { stillEdge = true; break; }
+                }
+                if (!stillEdge) this.edgePixels.delete(nk);
+            }
+        }
+        this.markRendererDirty();
+        return true;
+    }
+
+    _recomputeEdgePixels() {
+        this.edgePixels.clear();
+        const neigh = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
+        for (const p of this.pixels) {
+            const key = `${p.dx},${p.dy}`;
+            for (const [ox, oy] of neigh) {
+                if (!this.pixelSet.has(`${p.dx+ox},${p.dy+oy}`)) { this.edgePixels.add(key); break; }
+            }
+        }
     }
 
     /**
@@ -183,10 +242,7 @@ export class Node {
     containsPoint(x, y) {
         const relativeX = x - this.x;
         const relativeY = y - this.y;
-        
-        return this.pixels.some(pixel => 
-            pixel.dx === Math.floor(relativeX) && 
-            pixel.dy === Math.floor(relativeY)
-        );
+        const key = `${Math.floor(relativeX)},${Math.floor(relativeY)}`;
+        return this.pixelSet.has(key);
     }
 }

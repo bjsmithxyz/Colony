@@ -24,6 +24,11 @@ export class NodeRenderer {
         
         // Render the main node body
         const cfg = (this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.RENDER) ? this.node.simulation.CONFIG.RENDER : null;
+        if (cfg && cfg.MARCHING_SQUARES_ENABLED) {
+            // Use marching-squares Path2D when enabled
+            this._renderWithMarchingSquares(ctx, bounds, cfg);
+            return;
+        }
         if (cfg && cfg.OFFSCREEN_CANVAS_ENABLED) {
             this._renderWithOffscreen(ctx, bounds, cfg);
         } else {
@@ -275,5 +280,103 @@ export class NodeRenderer {
         const drawX = this.node.x + bounds.minX - this._offscreenBounds.margin;
         const drawY = this.node.y + bounds.minY - this._offscreenBounds.margin;
         ctx.drawImage(this._offscreen, drawX, drawY);
+    }
+
+    _renderWithMarchingSquares(ctx, bounds, cfg) {
+        // Recompute Path2D only when checksum changes
+        const checksum = this._computePixelChecksum();
+        if (!this._msPath || this._msChecksum !== checksum) {
+            this._msPath = this._buildMarchingSquaresPath(bounds);
+            this._msChecksum = checksum;
+        }
+        if (!this._msPath) return;
+
+        ctx.save();
+        ctx.fillStyle = this.node.color || '#4CAF50';
+        ctx.fill(this._msPath);
+        ctx.lineWidth = cfg.MARCHING_SQUARES_STROKE_WIDTH || 2;
+        // lighter stroke
+        try {
+            const c = (this.node.color || '#4CAF50').replace('#','');
+            const r = parseInt(c.substring(0,2),16);
+            const g = parseInt(c.substring(2,4),16);
+            const b = parseInt(c.substring(4,6),16);
+            const mix = (v) => Math.min(255, Math.round(v + (255 - v) * 0.5));
+            ctx.strokeStyle = `rgba(${mix(r)},${mix(g)},${mix(b)},0.9)`;
+        } catch (e) { ctx.strokeStyle = 'rgba(255,255,255,0.9)'; }
+        ctx.stroke(this._msPath);
+        ctx.restore();
+    }
+
+    _buildMarchingSquaresPath(bounds) {
+        // Build boolean grid from pixelSet for marching squares
+        const minX = bounds.minX;
+        const minY = bounds.minY;
+        const w = bounds.maxX - bounds.minX + 1;
+        const h = bounds.maxY - bounds.minY + 1;
+        if (w <= 0 || h <= 0) return null;
+
+        // Create grid with 1px padding to simplify edges
+        const width = w + 2;
+        const height = h + 2;
+        const grid = new Uint8Array(width * height);
+        for (const key of this.node.pixelSet) {
+            const [dx, dy] = key.split(',').map(Number);
+            const gx = dx - minX + 1;
+            const gy = dy - minY + 1;
+            if (gx >= 0 && gx < width && gy >= 0 && gy < height) grid[gy * width + gx] = 1;
+        }
+
+        const path = new Path2D();
+        // Simple marching squares tracing of external contours
+        const visited = new Uint8Array(width * height);
+        const get = (x,y) => grid[y * width + x];
+
+        for (let y = 0; y < height-1; y++) {
+            for (let x = 0; x < width-1; x++) {
+                const idx = y * width + x;
+                if (visited[idx]) continue;
+                const a = get(x,y), b = get(x+1,y), c = get(x+1,y+1), d = get(x,y+1);
+                if (!a && !b && !c && !d) continue;
+
+                // trace contour starting at (x,y)
+                let cx = x, cy = y;
+                const contour = [];
+                let guard = 0;
+                do {
+                    guard++; if (guard > 10000) break;
+                    contour.push([cx, cy]);
+                    visited[cy * width + cx] = 1;
+                    // move right/down/left/up by checking neighbors
+                    const na = get(cx, cy), nb = get(cx+1, cy), nc = get(cx+1, cy+1), nd = get(cx, cy+1);
+                    const code = (na<<3)|(nb<<2)|(nc<<1)|nd;
+                    switch(code) {
+                        case 1: cy++; break;
+                        case 2: cx++; break;
+                        case 3: cx++; break;
+                        case 4: cy++; cx++; break;
+                        case 5: cy++; break;
+                        case 6: cy++; cx++; break;
+                        case 7: cx++; break;
+                        case 8: cx--; break;
+                        case 9: cy++; break;
+                        case 10: cx++; break;
+                        case 11: cx++; break;
+                        case 12: cx--; break;
+                        case 13: cx--; break;
+                        case 14: cy--; break;
+                        default: cx++; break;
+                    }
+                } while (!(cx === x && cy === y));
+
+                if (contour.length > 2) {
+                    // convert contour points to world coordinates and build path
+                    path.moveTo(this.node.x + (contour[0][0] + minX - 1) , this.node.y + (contour[0][1] + minY - 1));
+                    for (let i = 1; i < contour.length; i++) path.lineTo(this.node.x + (contour[i][0] + minX -1), this.node.y + (contour[i][1] + minY -1));
+                    path.closePath();
+                }
+            }
+        }
+        return path;
     }
 }

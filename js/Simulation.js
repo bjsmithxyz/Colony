@@ -334,8 +334,14 @@ export class Simulation {
 
             // Transfer pixels (avoid duplicates)
             for (const p of absorbed.pixels) {
-                const exists = survivor.pixels.some(sp => sp.dx === p.dx && sp.dy === p.dy);
-                if (!exists) survivor.pixels.push({ dx: p.dx + (absorbed.x - survivor.x), dy: p.dy + (absorbed.y - survivor.y) });
+                const rebasedX = p.dx + (absorbed.x - survivor.x);
+                const rebasedY = p.dy + (absorbed.y - survivor.y);
+                if (survivor && typeof survivor.hasPixel === 'function') {
+                    if (!survivor.hasPixel(rebasedX, rebasedY)) survivor.addPixel(rebasedX, rebasedY);
+                } else {
+                    const exists = survivor.pixels.some(sp => sp.dx === rebasedX && sp.dy === rebasedY);
+                    if (!exists) survivor.pixels.push({ dx: rebasedX, dy: rebasedY });
+                }
             }
 
             // Transfer food
@@ -353,6 +359,10 @@ export class Simulation {
             if (idx > -1) {
                 this.nodes.splice(idx, 1);
             }
+
+            // After absorption, ensure survivor recomputes its edge pixels and marks renderer dirty
+            if (survivor && typeof survivor._recomputeEdgePixels === 'function') survivor._recomputeEdgePixels();
+            if (survivor && typeof survivor.markRendererDirty === 'function') survivor.markRendererDirty();
 
             // spawn bar UI removed
 
@@ -379,20 +389,17 @@ export class Simulation {
         try {
             const candidates = this.nodeGrid.queryBox({ minX: x, minY: y, maxX: x, maxY: y });
             for (const node of candidates) {
-                for (const pixel of node.pixels) {
-                    const px = node.x + pixel.dx;
-                    const py = node.y + pixel.dy;
-                    if (x >= px && x < px + 1 && y >= py && y < py + 1) return node;
-                }
+                // Use node.hasPixel for fast containment checks
+                const relX = Math.floor(x - node.x);
+                const relY = Math.floor(y - node.y);
+                if (node.hasPixel && node.hasPixel(relX, relY)) return node;
             }
         } catch (e) {
             // fallback to brute force
             for (const node of this.nodes) {
-                for (const pixel of node.pixels) {
-                    const px = node.x + pixel.dx;
-                    const py = node.y + pixel.dy;
-                    if (x >= px && x < px + 1 && y >= py && y < py + 1) return node;
-                }
+                const relX = Math.floor(x - node.x);
+                const relY = Math.floor(y - node.y);
+                if (node.hasPixel && node.hasPixel(relX, relY)) return node;
             }
         }
 
