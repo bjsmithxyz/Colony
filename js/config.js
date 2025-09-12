@@ -18,6 +18,8 @@ export const CONFIG = {
     // Growth tuning
     // Number of growth actions (calls) to perform per node per frame when queued
     GROWTH_ACTIONS_PER_FRAME: 2,
+    // Debugging toggles
+    DEBUG_GROWTH_LOG: false,
     INDIVIDUAL: {
         SIZE: 1,
         COLOR: '#2196F3',
