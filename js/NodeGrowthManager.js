@@ -271,8 +271,21 @@ export class NodeGrowthManager {
     }
 
     _chooseEdgePixelTowards(targetX, targetY) {
-        if (this.node.pixels.length === 0) return null;
-        // Find pixel with maximum projection toward target vector
+        // Prefer using the edge/frontier pixels for outward growth start
+        const edgeSet = this.node.edgePixels;
+        if (edgeSet && edgeSet.size > 0) {
+            let best = null;
+            let bestProj = -Infinity;
+            for (const key of edgeSet) {
+                const [sx, sy] = key.split(',').map(Number);
+                const proj = sx * targetX + sy * targetY;
+                if (proj > bestProj) { bestProj = proj; best = { dx: sx, dy: sy }; }
+            }
+            return best;
+        }
+
+        // Fallback: choose from all pixels (older nodes or if edge set not populated)
+        if (!this.node.pixels || this.node.pixels.length === 0) return null;
         let best = null;
         let bestProj = -Infinity;
         for (const p of this.node.pixels) {
