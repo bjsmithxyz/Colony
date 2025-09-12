@@ -8,6 +8,7 @@ export class NodeRenderer {
         this._offscreen = null;
         this._offscreenBounds = null;
         this._isDirty = true;
+        this._lastPixelChecksum = 0;
     }
 
     /**
@@ -193,6 +194,23 @@ export class NodeRenderer {
         this._isDirty = true;
     }
 
+    _computePixelChecksum() {
+        // simple 32-bit rolling hash of pixel coordinates
+        let h = 2166136261 >>> 0;
+        for (let i = 0; i < this.node.pixels.length; i++) {
+            const p = this.node.pixels[i];
+            // mix dx and dy
+            h ^= (p.dx & 0xffffffff);
+            h = Math.imul(h, 16777619) >>> 0;
+            h ^= (p.dy & 0xffffffff);
+            h = Math.imul(h, 16777619) >>> 0;
+        }
+        // incorporate pixel count
+        h ^= (this.node.pixels.length & 0xffffffff);
+        h = Math.imul(h, 16777619) >>> 0;
+        return h >>> 0;
+    }
+
     _renderWithOffscreen(ctx, bounds, cfg) {
         // determine required offscreen bounds (add margin for blur)
         const margin = (cfg.SILHOUETTE_BLUR_ENABLED ? (cfg.SILHOUETTE_BLUR_RADIUS || 6) : 0) + 2;
@@ -210,8 +228,12 @@ export class NodeRenderer {
 
         const offCtx = this._offscreen.getContext('2d');
 
-        // rebuild offscreen if dirty
-        if (this._isDirty) {
+    // compute checksum and decide whether to rebuild
+    const checksum = this._computePixelChecksum();
+    if (checksum !== this._lastPixelChecksum) this._isDirty = true;
+
+    // rebuild offscreen if dirty
+    if (this._isDirty) {
             offCtx.clearRect(0, 0, this._offscreen.width, this._offscreen.height);
 
             // draw pixels into offscreen (offset by margin and node position)
@@ -245,6 +267,7 @@ export class NodeRenderer {
             }
 
             this._isDirty = false;
+            this._lastPixelChecksum = checksum;
         }
 
         // draw offscreen to main ctx at correct position
