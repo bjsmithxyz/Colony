@@ -25,8 +25,12 @@ export class NodeShapeGenerator {
             if (visited.has(key)) continue;
             visited.add(key);
             
-            // Add this pixel to the node
-            this.node.pixels.push({ dx, dy });
+            // Add this pixel to the node (use helper for pixelSet/edge tracking)
+            if (this.node && typeof this.node.addPixel === 'function') {
+                this.node.addPixel(dx, dy);
+            } else {
+                this.node.pixels.push({ dx, dy });
+            }
             
             // Add neighbors to queue with organic probability
             if (this.node.pixels.length < targetPixels) {

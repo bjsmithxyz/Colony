@@ -18,20 +18,88 @@ export class Node {
         this.pulseAnimation = 0;
         this.simulation = null;
     this.lastFoodAmount = 0;
-    this.lastSpawnTime = 0; // timestamp (ms) of last automatic spawn
+    this.lastSpawnTime = 0; // timestamp (ms) of last automatic spawn (kept for compatibility)
     this.spawnCooldown = 5000; // cooldown in milliseconds between spawns
-    this.spawnTimer = null; // timeout id for scheduled spawn attempts
         
         // Initialize pixel array for organic shape
-        this.pixels = [];
+    this.pixels = [];
+    // Fast lookup set for pixel existence, keys are "dx,dy"
+    this.pixelSet = new Set();
+    // Edge/frontier pixels for faster growth start selection
+    this.edgePixels = new Set();
         
         // Initialize specialized managers
         this.growthManager = new NodeGrowthManager(this);
         this.renderer = new NodeRenderer(this);
         this.shapeGenerator = new NodeShapeGenerator(this);
         
+        // Renderer dirty flag for caching
+        this.rendererDirty = true;
+
         // Generate initial organic shape
         this.shapeGenerator.generateOrganicShape();
+        // ensure pixelSet and edgePixels are populated if shapeGenerator used direct pushes
+        for (const p of this.pixels) {
+            this.pixelSet.add(`${p.dx},${p.dy}`);
+        }
+        this._recomputeEdgePixels();
+        this.markRendererDirty();
+    }
+
+    markRendererDirty() {
+        this.rendererDirty = true;
+        // also notify renderer instance if present
+        if (this.renderer) this.renderer._markDirty && this.renderer._markDirty();
+    }
+
+    hasPixel(dx, dy) {
+        return this.pixelSet.has(`${dx},${dy}`);
+    }
+
+    addPixel(dx, dy) {
+        const key = `${dx},${dy}`;
+        if (this.pixelSet.has(key)) return false;
+        this.pixelSet.add(key);
+        this.pixels.push({ dx, dy });
+        // update edgePixels: new pixel may create new frontier entries around it
+        const neigh = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
+        let isEdge = false;
+        for (const [ox, oy] of neigh) {
+            const nk = `${dx+ox},${dy+oy}`;
+            if (!this.pixelSet.has(nk)) {
+                isEdge = true;
+                // mark neighbor as edge candidate (if neighbor is existing pixel, ensure it's marked)
+                const neighborKey = `${dx+ox},${dy+oy}`;
+                if (this.pixelSet.has(neighborKey)) this.edgePixels.add(neighborKey);
+            }
+        }
+        if (isEdge) this.edgePixels.add(key);
+        // newly filled pixel might remove edge status from neighbors
+        for (const [ox, oy] of neigh) {
+            const nk = `${dx+ox},${dy+oy}`;
+            if (this.pixelSet.has(nk)) {
+                // check if neighbor still has any empty neighbor; if not remove from edgePixels
+                let stillEdge = false;
+                for (const [ax, ay] of neigh) {
+                    const ck = `${dx+ox+ax},${dy+oy+ay}`;
+                    if (!this.pixelSet.has(ck)) { stillEdge = true; break; }
+                }
+                if (!stillEdge) this.edgePixels.delete(nk);
+            }
+        }
+        this.markRendererDirty();
+        return true;
+    }
+
+    _recomputeEdgePixels() {
+        this.edgePixels.clear();
+        const neigh = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
+        for (const p of this.pixels) {
+            const key = `${p.dx},${p.dy}`;
+            for (const [ox, oy] of neigh) {
+                if (!this.pixelSet.has(`${p.dx+ox},${p.dy+oy}`)) { this.edgePixels.add(key); break; }
+            }
+        }
     }
 
     /**
@@ -145,45 +213,7 @@ export class Node {
      * Schedule a spawn attempt after the remaining cooldown elapses.
      * This ensures surplus food will be used as soon as the cooldown expires.
      */
-    scheduleSpawnAttempt() {
-        // If there's already a timer scheduled, don't schedule another
-        if (this.spawnTimer) return;
-
-        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-        const timeSinceLast = now - this.lastSpawnTime;
-        const remaining = Math.max(0, this.spawnCooldown - timeSinceLast);
-
-        this.spawnTimer = setTimeout(() => this.attemptScheduledSpawn(), remaining + 10); // small buffer
-    }
-
-    /**
-     * Attempt to spawn when timer fires. If multiple spawns are possible, continue scheduling
-     * until food < 10.
-     */
-    attemptScheduledSpawn() {
-        this.spawnTimer = null;
-
-        if (!this.simulation) return;
-
-        // Try to spawn as many as cooldown permits; spawn() itself will enforce cooldown
-        while (this.food >= 10) {
-            const spawned = this.spawn();
-            if (!spawned) {
-                // If still blocked by cooldown (rare), schedule another attempt
-                this.scheduleSpawnAttempt();
-                return;
-            }
-
-            if (this.simulation.updateStats) this.simulation.updateStats();
-        }
-    }
-
-    cancelScheduledSpawn() {
-        if (this.spawnTimer) {
-            clearTimeout(this.spawnTimer);
-            this.spawnTimer = null;
-        }
-    }
+    // spawn scheduling removed: spawning is attempted immediately in storeFood()
 
     /**
      * Get the closest pixel to given coordinates
@@ -212,10 +242,7 @@ export class Node {
     containsPoint(x, y) {
         const relativeX = x - this.x;
         const relativeY = y - this.y;
-        
-        return this.pixels.some(pixel => 
-            pixel.dx === Math.floor(relativeX) && 
-            pixel.dy === Math.floor(relativeY)
-        );
+        const key = `${Math.floor(relativeX)},${Math.floor(relativeY)}`;
+        return this.pixelSet.has(key);
     }
 }

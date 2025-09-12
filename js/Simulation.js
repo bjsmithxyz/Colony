@@ -126,42 +126,7 @@ export class Simulation {
         this.renderer = new SimulationRenderer(this);
         this.contextMenuManager = new ContextMenuManager(this);
         this.performanceMonitor = new PerformanceMonitor(this);
-    // Create container for node spawn bars (bottom-right UI)
-        this.nodeBarContainer = document.getElementById('nodeSpawnBars');
-        if (!this.nodeBarContainer) {
-            this.nodeBarContainer = document.createElement('div');
-            this.nodeBarContainer.id = 'nodeSpawnBars';
-            Object.assign(this.nodeBarContainer.style, {
-                position: 'fixed',
-                width: '50px',
-                display: 'flex',
-                flexDirection: 'column-reverse',
-                gap: '6px',
-                pointerEvents: 'none',
-                zIndex: 1000
-            });
-            document.body.appendChild(this.nodeBarContainer);
-
-            // Position relative to the simulation canvas
-            this._updateNodeBarPosition = () => {
-                try {
-                    const rect = this.canvas.getBoundingClientRect();
-                    // place -80px inset from canvas right, and 0px above canvas bottom
-                    const rightPx = Math.max(0, Math.round(window.innerWidth - rect.right + -80));
-                    this.nodeBarContainer.style.right = `${rightPx}px`;
-                    // clear left to avoid conflicts
-                    this.nodeBarContainer.style.left = '';
-                    const bottomPx = Math.max(0, Math.round(window.innerHeight - rect.bottom + 0));
-                    this.nodeBarContainer.style.bottom = `${bottomPx}px`;
-                } catch (e) { }
-            };
-
-            // Initial position
-            this._updateNodeBarPosition();
-            // Update on resize/scroll so the bars stay anchored to the canvas
-            window.addEventListener('resize', this._updateNodeBarPosition);
-            window.addEventListener('scroll', this._updateNodeBarPosition, true);
-        }
+        // spawn bar UI removed: cooldown bars not required
     }
 
     // Module system removed: no initializeModules
@@ -207,40 +172,10 @@ export class Simulation {
             this.updateStats();
         }
 
-        // Update per-node spawn bars every update for smooth animation
-        this.updateSpawnBars();
+    // spawn bar UI removed: cooldown bars not required
     }
 
-    updateSpawnBars() {
-        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-        for (let i = 0; i < this.nodes.length; i++) {
-            const node = this.nodes[i];
-            if (!node._spawnBarEl) continue;
-
-            // Compute progress (left-to-right) until next spawn
-            const elapsed = now - (node.lastSpawnTime || 0);
-            const cooldown = node.spawnCooldown || 1;
-            let progress = Math.max(0, Math.min(1, elapsed / cooldown));
-            // If node doesn't have enough food to spawn, show empty bar
-            if (node.food < 10) progress = 0;
-            node._spawnBarEl.fill.style.width = `${progress * 100}%`;
-
-            // Update fill color based on node color
-            try {
-                const base = (node.color && node.color.startsWith('#')) ? node.color : '#4CAF50';
-                const hex = base.replace('#','');
-                const r = parseInt(hex.substring(0,2),16);
-                const g = parseInt(hex.substring(2,4),16);
-                const b = parseInt(hex.substring(4,6),16);
-                const mix = (c) => Math.min(255, Math.round(c + (255 - c) * 0.4));
-                const lr = mix(r).toString(16).padStart(2,'0');
-                const lg = mix(g).toString(16).padStart(2,'0');
-                const lb = mix(b).toString(16).padStart(2,'0');
-                const lighter = `#${lr}${lg}${lb}`;
-                node._spawnBarEl.fill.style.background = `linear-gradient(90deg, ${base}, ${lighter})`;
-            } catch (e) {}
-        }
-    }
+    // spawn bar UI removed: no updateSpawnBars
 
     updateNodes() {
         this.nodes.forEach(node => {
@@ -349,29 +284,7 @@ export class Simulation {
             node.sharedPool = this.sharedNodePool;
             this.nodes.push(node);
 
-            // Create a spawn bar UI element for this node
-            try {
-                const barWrapper = document.createElement('div');
-                Object.assign(barWrapper.style, {
-                    width: '50px',
-                    height: '5px',
-                    background: 'rgba(0,0,0,0.25)',
-                    borderRadius: '2px',
-                    overflow: 'hidden'
-                });
-                const fill = document.createElement('div');
-                Object.assign(fill.style, {
-                    height: '100%',
-                    width: '0%',
-                    transformOrigin: 'left center',
-                    background: '#4CAF50'
-                });
-                barWrapper.appendChild(fill);
-                this.nodeBarContainer.appendChild(barWrapper);
-                node._spawnBarEl = { wrapper: barWrapper, fill: fill };
-            } catch (e) {
-                // DOM may not be available in some test environments
-            }
+            // spawn bar UI removed
             
             // Create first individual if this is the first node
             if (this.nodes.length === 1) {
@@ -421,8 +334,14 @@ export class Simulation {
 
             // Transfer pixels (avoid duplicates)
             for (const p of absorbed.pixels) {
-                const exists = survivor.pixels.some(sp => sp.dx === p.dx && sp.dy === p.dy);
-                if (!exists) survivor.pixels.push({ dx: p.dx + (absorbed.x - survivor.x), dy: p.dy + (absorbed.y - survivor.y) });
+                const rebasedX = p.dx + (absorbed.x - survivor.x);
+                const rebasedY = p.dy + (absorbed.y - survivor.y);
+                if (survivor && typeof survivor.hasPixel === 'function') {
+                    if (!survivor.hasPixel(rebasedX, rebasedY)) survivor.addPixel(rebasedX, rebasedY);
+                } else {
+                    const exists = survivor.pixels.some(sp => sp.dx === rebasedX && sp.dy === rebasedY);
+                    if (!exists) survivor.pixels.push({ dx: rebasedX, dy: rebasedY });
+                }
             }
 
             // Transfer food
@@ -441,12 +360,11 @@ export class Simulation {
                 this.nodes.splice(idx, 1);
             }
 
-            // Remove spawn bar element if present
-            try {
-                if (absorbed._spawnBarEl && absorbed._spawnBarEl.wrapper && absorbed._spawnBarEl.wrapper.parentNode) {
-                    absorbed._spawnBarEl.wrapper.parentNode.removeChild(absorbed._spawnBarEl.wrapper);
-                }
-            } catch (e) {}
+            // After absorption, ensure survivor recomputes its edge pixels and marks renderer dirty
+            if (survivor && typeof survivor._recomputeEdgePixels === 'function') survivor._recomputeEdgePixels();
+            if (survivor && typeof survivor.markRendererDirty === 'function') survivor.markRendererDirty();
+
+            // spawn bar UI removed
 
             // Update stats
             this.updateStats();
@@ -471,20 +389,17 @@ export class Simulation {
         try {
             const candidates = this.nodeGrid.queryBox({ minX: x, minY: y, maxX: x, maxY: y });
             for (const node of candidates) {
-                for (const pixel of node.pixels) {
-                    const px = node.x + pixel.dx;
-                    const py = node.y + pixel.dy;
-                    if (x >= px && x < px + 1 && y >= py && y < py + 1) return node;
-                }
+                // Use node.hasPixel for fast containment checks
+                const relX = Math.floor(x - node.x);
+                const relY = Math.floor(y - node.y);
+                if (node.hasPixel && node.hasPixel(relX, relY)) return node;
             }
         } catch (e) {
             // fallback to brute force
             for (const node of this.nodes) {
-                for (const pixel of node.pixels) {
-                    const px = node.x + pixel.dx;
-                    const py = node.y + pixel.dy;
-                    if (x >= px && x < px + 1 && y >= py && y < py + 1) return node;
-                }
+                const relX = Math.floor(x - node.x);
+                const relY = Math.floor(y - node.y);
+                if (node.hasPixel && node.hasPixel(relX, relY)) return node;
             }
         }
 
@@ -560,12 +475,7 @@ export class Simulation {
             this.foodSources = [];
             this.totalIndividualsSpawned = 0;
             this.selectedTarget = null;
-            // Remove all spawn bar elements
-            try {
-                if (this.nodeBarContainer) {
-                    while (this.nodeBarContainer.firstChild) this.nodeBarContainer.removeChild(this.nodeBarContainer.firstChild);
-                }
-            } catch (e) {}
+            // spawn bar UI removed
             
             this.generateFoodSources();
             // Reset shared pool and counters

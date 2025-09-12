@@ -1,7 +1,7 @@
 export const CONFIG = {
     MAP: {
-        WIDTH: 512,
-        HEIGHT: 512,
+        WIDTH: 1000,
+        HEIGHT: 1000,
         BACKGROUND_COLOR: '#1a1a1a'
     },
     NODE: {
@@ -32,4 +32,14 @@ export const CONFIG = {
     SIMULATION: {
         FPS: 60
     }
+};
+
+// Rendering-specific tuning for experimental optimizations
+CONFIG.RENDER = {
+    OFFSCREEN_CANVAS_ENABLED: true,
+    OFFSCREEN_CANVAS_SAVE_MEMORY: false, // if true, reuse a single smaller canvas when possible
+    SILHOUETTE_BLUR_ENABLED: false,
+    SILHOUETTE_BLUR_RADIUS: 6,
+    MARCHING_SQUARES_ENABLED: false,
+    MARCHING_SQUARES_STROKE_WIDTH: 2
 };

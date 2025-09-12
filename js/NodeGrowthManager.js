@@ -116,10 +116,8 @@ export class NodeGrowthManager {
         }
 
         // Check if pixel already exists
-        const exists = this.node.pixels.some(p => p.dx === newPixel.dx && p.dy === newPixel.dy);
-        if (!exists) {
-            this.node.pixels.push(newPixel);
-        }
+        // use node.addPixel for fast set handling
+        this.node.addPixel(newPixel.dx, newPixel.dy);
     }
 
     /**
@@ -130,106 +128,121 @@ export class NodeGrowthManager {
         const targetX = Math.round(worldPoint.x) - this.node.x;
         const targetY = Math.round(worldPoint.y) - this.node.y;
 
-        // If the deposit lies on one of our existing pixels, start from that pixel to grow outward
-        let startPixel = this._chooseEdgePixelTowards(targetX, targetY) || { dx: 0, dy: 0 };
-        // If the worldPoint corresponds to a pixel on this node, prefer starting there
-        const relX = targetX, relY = targetY;
-        const onNode = this.node.pixels.find(p => p.dx === relX && p.dy === relY);
-        if (onNode) startPixel = onNode;
+    // If the deposit lies on one of our existing pixels, start from that pixel to grow outward
+    let startPixel = this._chooseEdgePixelTowards(targetX, targetY) || { dx: 0, dy: 0 };
+    // If the worldPoint corresponds to a pixel on this node, prefer starting there
+    const relX = targetX, relY = targetY;
+    if (this.node.hasPixel(relX, relY)) startPixel = { dx: relX, dy: relY };
 
-        // Evaluate 8 neighbor candidates around startPixel and pick one with weighted randomness
-        const neighbors = [
-            { x: startPixel.dx + 1, y: startPixel.dy },
-            { x: startPixel.dx - 1, y: startPixel.dy },
-            { x: startPixel.dx, y: startPixel.dy + 1 },
-            { x: startPixel.dx, y: startPixel.dy - 1 },
-            { x: startPixel.dx + 1, y: startPixel.dy + 1 },
-            { x: startPixel.dx - 1, y: startPixel.dy - 1 },
-            { x: startPixel.dx + 1, y: startPixel.dy - 1 },
-            { x: startPixel.dx - 1, y: startPixel.dy + 1 }
-        ];
-
-        // Score neighbors by alignment to target and add small randomness for organic paths
-        const scored = neighbors.map(n => {
-            const vx = relX - n.x;
-            const vy = relY - n.y;
-            const distSq = vx * vx + vy * vy;
-            // Prefer neighbors that reduce distance to target (lower distSq), but add randomness
-            const score = 1 / (1 + distSq) + (Math.random() * 0.3 - 0.15);
-            return { n, score };
-        }).sort((a, b) => b.score - a.score);
-
-        // Probabilistically choose among candidates. Occasionally pick a less-targeted neighbor to encourage meandering
-        const cfg = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
-        const randomDirProb = (cfg && typeof cfg.GROWTH_RANDOM_DIR_CHANGE === 'number') ? cfg.GROWTH_RANDOM_DIR_CHANGE : 0.35;
-
-        let chosen;
-        if (Math.random() < randomDirProb) {
-            // pick randomly among the top 4 to encourage direction changes
-            const choicePool = scored.slice(0, Math.max(1, Math.min(4, scored.length)));
-            chosen = choicePool[Math.floor(Math.random() * choicePool.length)].n;
-        } else {
-            const topK = Math.max(1, Math.min(3, scored.length));
-            const pickIndex = Math.min(topK - 1, Math.floor(Math.random() * topK + (Math.random() < 0.6 ? 0 : 1)));
-            chosen = scored[pickIndex].n;
+        // Build a short integer-stepped path (Bresenham-like) from startPixel toward (relX, relY)
+        const maxSteps = 6; // cap path length per growth action
+        const path = [];
+        let sx = startPixel.dx, sy = startPixel.dy;
+        for (let step = 0; step < maxSteps; step++) {
+            const dx = relX - sx;
+            const dy = relY - sy;
+            if (dx === 0 && dy === 0) break;
+            const stepX = dx === 0 ? 0 : (dx > 0 ? 1 : -1);
+            const stepY = dy === 0 ? 0 : (dy > 0 ? 1 : -1);
+            const nx = sx + stepX, ny = sy + stepY;
+            // if pixel already exists, advance start to that pixel and continue
+            if (this.node.hasPixel(nx, ny)) {
+                sx = nx; sy = ny; continue;
+            }
+            path.push({ dx: nx, dy: ny });
+            sx = nx; sy = ny;
         }
 
-        const newPixel = { dx: chosen.x, dy: chosen.y };
-
-        // Add thickness around the path
-        this._addPixelIfMissing(newPixel.dx, newPixel.dy);
+        // Apply path as a batch: add pixels and thickness and branching around each step
         const thickness = (this.node.simulation && this.node.simulation.CONFIG.NODE.GROWTH_THICKNESS) || 1;
-        for (let t = 1; t <= thickness; t++) {
-            this._addPixelIfMissing(newPixel.dx + t, newPixel.dy);
-            this._addPixelIfMissing(newPixel.dx - t, newPixel.dy);
-            this._addPixelIfMissing(newPixel.dx, newPixel.dy + t);
-            this._addPixelIfMissing(newPixel.dx, newPixel.dy - t);
-        }
+        for (const newPixel of path) {
+            this._addPixelIfMissing(newPixel.dx, newPixel.dy);
+        const thickness = (this.node.simulation && this.node.simulation.CONFIG.NODE.GROWTH_THICKNESS) || 1;
+            for (let t = 1; t <= thickness; t++) {
+                this._addPixelIfMissing(newPixel.dx + t, newPixel.dy);
+                this._addPixelIfMissing(newPixel.dx - t, newPixel.dy);
+                this._addPixelIfMissing(newPixel.dx, newPixel.dy + t);
+                this._addPixelIfMissing(newPixel.dx, newPixel.dy - t);
+            }
 
         // Random branching: sometimes create additional neighbor pixels nearby
-        const branchChance = (this.node.simulation && this.node.simulation.CONFIG.NODE.GROWTH_BRANCH_CHANCE) || 0.12;
-        if (Math.random() < branchChance) {
-            // pick a nearby neighbor that's not already filled
-            const branchCandidates = neighbors.filter(nb => !(this.node.pixels.some(p => p.dx === nb.x && p.dy === nb.y)));
-            if (branchCandidates.length > 0) {
-                const b = branchCandidates[Math.floor(Math.random() * branchCandidates.length)];
-                this._addPixelIfMissing(b.x, b.y);
+            // Random branching: sometimes create additional neighbor pixels nearby
+            const branchChance = (this.node.simulation && this.node.simulation.CONFIG.NODE.GROWTH_BRANCH_CHANCE) || 0.12;
+            if (Math.random() < branchChance) {
+                // pick a nearby neighbor that's not already filled
+                const neighbors = [
+                    { x: newPixel.dx + 1, y: newPixel.dy },{ x: newPixel.dx - 1, y: newPixel.dy },
+                    { x: newPixel.dx, y: newPixel.dy + 1 },{ x: newPixel.dx, y: newPixel.dy - 1 },
+                    { x: newPixel.dx + 1, y: newPixel.dy + 1 },{ x: newPixel.dx - 1, y: newPixel.dy - 1 },
+                    { x: newPixel.dx + 1, y: newPixel.dy - 1 },{ x: newPixel.dx - 1, y: newPixel.dy + 1 }
+                ];
+                const branchCandidates = neighbors.filter(nb => !this.node.hasPixel(nb.x, nb.y));
+                if (branchCandidates.length > 0) {
+                    const b = branchCandidates[Math.floor(Math.random() * branchCandidates.length)];
+                    this._addPixelIfMissing(b.x, b.y);
+                }
             }
-        }
 
         // Extra fork behavior: occasionally grow an additional step from a nearby existing pixel
-        const forkExtraChance = (this.node.simulation && typeof this.node.simulation.CONFIG.NODE.GROWTH_BRANCH_CHANCE === 'number') ? (this.node.simulation.CONFIG.NODE.GROWTH_BRANCH_CHANCE * 0.6) : 0.07;
-        if (Math.random() < forkExtraChance) {
-            // find pixels near the newly added pixel within distance 2
-            const nearby = this.node.pixels.filter(p => Math.abs(p.dx - newPixel.dx) <= 2 && Math.abs(p.dy - newPixel.dy) <= 2 && !(p.dx === newPixel.dx && p.dy === newPixel.dy));
-            if (nearby.length > 0) {
-                const src = nearby[Math.floor(Math.random() * nearby.length)];
-                // pick a random neighbor of src and add it
-                const cand = [
-                    { x: src.dx + 1, y: src.dy }, { x: src.dx - 1, y: src.dy },
-                    { x: src.dx, y: src.dy + 1 }, { x: src.dx, y: src.dy - 1 },
-                    { x: src.dx + 1, y: src.dy + 1 }, { x: src.dx - 1, y: src.dy - 1 }
-                ];
-                const picked = cand[Math.floor(Math.random() * cand.length)];
-                this._addPixelIfMissing(picked.x, picked.y);
+            const forkExtraChance = (this.node.simulation && typeof this.node.simulation.CONFIG.NODE.GROWTH_BRANCH_CHANCE === 'number') ? (this.node.simulation.CONFIG.NODE.GROWTH_BRANCH_CHANCE * 0.6) : 0.07;
+            if (Math.random() < forkExtraChance) {
+                // find pixels near the newly added pixel within distance 2
+                const nearby = this.node.pixels.filter(p => Math.abs(p.dx - newPixel.dx) <= 2 && Math.abs(p.dy - newPixel.dy) <= 2 && !(p.dx === newPixel.dx && p.dy === newPixel.dy));
+                if (nearby.length > 0) {
+                    const src = nearby[Math.floor(Math.random() * nearby.length)];
+                    // pick a random neighbor of src and add it
+                    const cand = [
+                        { x: src.dx + 1, y: src.dy }, { x: src.dx - 1, y: src.dy },
+                        { x: src.dx, y: src.dy + 1 }, { x: src.dx, y: src.dy - 1 },
+                        { x: src.dx + 1, y: src.dy + 1 }, { x: src.dx - 1, y: src.dy - 1 }
+                    ];
+                    const picked = cand[Math.floor(Math.random() * cand.length)];
+                    this._addPixelIfMissing(picked.x, picked.y);
+                }
             }
         }
 
         // After adding, check for immediate merge: if the new pixel lies on another node, merge
-        const worldX = this.node.x + newPixel.dx;
-        const worldY = this.node.y + newPixel.dy;
+        // After adding, check for immediate merge: require >=2 adjacent contact pixels to trigger merge
         if (this.node.simulation) {
-            const other = this.node.simulation.getNodeAt(worldX, worldY);
-            if (other && other !== this.node) {
-                // Merge immediately: larger node survives
-                this.node.simulation.mergeNodes(this.node, other);
+            // count adjacent pixels belonging to other nodes around the endpoint of the path
+            const endpoints = path.length > 0 ? [path[path.length-1]] : [];
+            for (const ep of endpoints) {
+                const worldX = this.node.x + ep.dx;
+                const worldY = this.node.y + ep.dy;
+                const candidates = this.node.simulation.nodeGrid.queryBox({ minX: worldX-1, minY: worldY-1, maxX: worldX+1, maxY: worldY+1 });
+                for (const other of candidates) {
+                    if (other === this.node) continue;
+                    // count contacting pixels between this node and other within a 3x3 neighborhood
+                    let contactCount = 0;
+                    for (let oy = -1; oy <= 1; oy++) {
+                        for (let ox = -1; ox <= 1; ox++) {
+                            const nx = worldX + ox;
+                            const ny = worldY + oy;
+                            // check if other has a pixel at nx,ny
+                            const relX = nx - other.x;
+                            const relY = ny - other.y;
+                            if (other.hasPixel && other.hasPixel(relX, relY)) contactCount++;
+                        }
+                    }
+                    if (contactCount >= 2) {
+                        this.node.simulation.mergeNodes(this.node, other);
+                        return;
+                    }
+                }
             }
         }
     }
 
     _addPixelIfMissing(dx, dy) {
+        if (this.node && typeof this.node.addPixel === 'function') {
+            return this.node.addPixel(dx, dy);
+        }
         const exists = this.node.pixels.some(p => p.dx === dx && p.dy === dy);
         if (!exists) this.node.pixels.push({ dx, dy });
+        // Mark renderer dirty so caches can be rebuilt
+        if (this.node && typeof this.node.markRendererDirty === 'function') this.node.markRendererDirty();
+        return true;
     }
 
     _chooseEdgePixelTowards(targetX, targetY) {
@@ -310,11 +323,9 @@ export class NodeGrowthManager {
                 dx: growthPixel.dx + perpendicular.dx,
                 dy: growthPixel.dy + perpendicular.dy
             };
-            
-            // Check if this pixel already exists
-            const exists = this.node.pixels.some(p => p.dx === supportPixel.dx && p.dy === supportPixel.dy);
-            if (!exists) {
-                this.node.pixels.push(supportPixel);
+            // Check if this pixel already exists and add via node helper
+            if (!this.node.hasPixel(supportPixel.dx, supportPixel.dy)) {
+                this.node.addPixel(supportPixel.dx, supportPixel.dy);
                 supportAdded++;
             }
         }
@@ -354,20 +365,17 @@ export class NodeGrowthManager {
         // For each growth pixel, add thickness pixels around it
         for (const growthPixel of growthPixels) {
             // Add 2 pixels of thickness on each side
-            for (let thickness = 1; thickness <= 2; thickness++) {
-                for (const perpDir of perpDirs) {
-                    const thickPixel = {
-                        dx: growthPixel.dx + (perpDir.dx * thickness),
-                        dy: growthPixel.dy + (perpDir.dy * thickness)
-                    };
-                    
-                    // Check if this pixel already exists
-                    const exists = this.node.pixels.some(p => p.dx === thickPixel.dx && p.dy === thickPixel.dy);
-                    if (!exists) {
-                        this.node.pixels.push(thickPixel);
+                for (let thickness = 1; thickness <= 2; thickness++) {
+                    for (const perpDir of perpDirs) {
+                        const thickPixel = {
+                            dx: growthPixel.dx + (perpDir.dx * thickness),
+                            dy: growthPixel.dy + (perpDir.dy * thickness)
+                        };
+                        if (!this.node.hasPixel(thickPixel.dx, thickPixel.dy)) {
+                            this.node.addPixel(thickPixel.dx, thickPixel.dy);
+                        }
                     }
                 }
-            }
             
             // Also add diagonal thickness for more organic shape
             const diagonalOffsets = [
@@ -380,10 +388,8 @@ export class NodeGrowthManager {
                     dx: growthPixel.dx + diagOffset.dx,
                     dy: growthPixel.dy + diagOffset.dy
                 };
-                
-                const exists = this.node.pixels.some(p => p.dx === diagPixel.dx && p.dy === diagPixel.dy);
-                if (!exists) {
-                    this.node.pixels.push(diagPixel);
+                if (!this.node.hasPixel(diagPixel.dx, diagPixel.dy)) {
+                    this.node.addPixel(diagPixel.dx, diagPixel.dy);
                 }
             }
         }
