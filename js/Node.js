@@ -164,6 +164,35 @@ export class Node {
     }
 
     /**
+     * Schedule a spawn attempt after the remaining cooldown elapses.
+     * Uses a single timer per node and will retry spawning until food < 10 or spawn succeeds.
+     */
+    scheduleSpawnAttempt() {
+        if (!this.simulation) return;
+        try {
+            const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+            const elapsed = now - this.lastSpawnTime;
+            const remaining = Math.max(0, this.spawnCooldown - elapsed);
+            if (this._spawnTimer) clearTimeout(this._spawnTimer);
+            this._spawnTimer = setTimeout(() => {
+                this._spawnTimer = null;
+                // Try to spawn as many as possible now
+                while (this.food >= 10) {
+                    const spawned = this.spawn();
+                    if (!spawned) {
+                        // still on cooldown or spawn failed, reschedule and exit
+                        this.scheduleSpawnAttempt();
+                        return;
+                    }
+                    if (this.simulation.updateStats) this.simulation.updateStats();
+                }
+            }, remaining);
+        } catch (e) {
+            // swallow scheduling errors
+        }
+    }
+
+    /**
      * Store food and trigger growth
      */
     storeFood(amount, sourceDirection = null, depositLocation = null) {
