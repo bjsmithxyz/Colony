@@ -212,28 +212,18 @@ export class NodeRenderer {
     }
 
     _renderWithOffscreen(ctx, bounds, cfg) {
-        // Downsampled silhouette blur approach:
-        // 1) Render pixel mask to a small offscreen canvas at reduced scale
-        // 2) Apply canvas blur filter to the small canvas
-        // 3) Draw scaled-up blurred canvas onto main ctx with node color tint
-
-        // scaling factor for downsampling (higher => faster, blur smoother). Tune in config later.
-        const downsample = (cfg.DOWNsample_FACTOR && cfg.DOWNsampleFactor) || 3;
-
-        // margin in world pixels to allow blur to extend
-        const marginWorld = (cfg.SILHOUETTE_BLUR_ENABLED ? (cfg.SILHOUETTE_BLUR_RADIUS || 6) : 0) + 2;
-        const worldW = (bounds.maxX - bounds.minX + 1) + marginWorld * 2;
-        const worldH = (bounds.maxY - bounds.minY + 1) + marginWorld * 2;
-
-        const width = Math.max(1, Math.ceil(worldW / downsample));
-        const height = Math.max(1, Math.ceil(worldH / downsample));
+        // Full-resolution offscreen silhouette + optional blur
+        // determine required offscreen bounds (add margin for blur)
+        const margin = (cfg.SILHOUETTE_BLUR_ENABLED ? (cfg.SILHOUETTE_BLUR_RADIUS || 6) : 0) + 2;
+        const width = (bounds.maxX - bounds.minX + 1) + margin * 2;
+        const height = (bounds.maxY - bounds.minY + 1) + margin * 2;
 
         // recreate offscreen if size changed
-        if (!this._offscreen || !this._offscreenBounds || this._offscreenBounds.width !== width || this._offscreenBounds.height !== height || this._offscreenBounds.downsample !== downsample) {
+        if (!this._offscreen || !this._offscreenBounds || this._offscreenBounds.width !== width || this._offscreenBounds.height !== height) {
             this._offscreen = document.createElement('canvas');
-            this._offscreen.width = width;
-            this._offscreen.height = height;
-            this._offscreenBounds = { width, height, marginWorld, downsample };
+            this._offscreen.width = Math.max(1, width);
+            this._offscreen.height = Math.max(1, height);
+            this._offscreenBounds = { width: this._offscreen.width, height: this._offscreen.height, margin };
             this._isDirty = true;
         }
 
@@ -243,33 +233,37 @@ export class NodeRenderer {
         const checksum = this._computePixelChecksum();
         if (checksum !== this._lastPixelChecksum) this._isDirty = true;
 
+        // rebuild offscreen if dirty
         if (this._isDirty) {
-            // clear small canvas
-            offCtx.clearRect(0, 0, width, height);
+            offCtx.clearRect(0, 0, this._offscreen.width, this._offscreen.height);
 
-            // draw pixel mask scaled down
-            offCtx.fillStyle = '#000'; // mask in alpha
-            const ox = marginWorld - bounds.minX;
-            const oy = marginWorld - bounds.minY;
+            // draw pixels into offscreen (offset by margin and node position)
+            offCtx.fillStyle = this.node.color;
+            const ox = margin + (0 - bounds.minX);
+            const oy = margin + (0 - bounds.minY);
             for (const p of this.node.pixels) {
-                const sx = Math.floor((ox + p.dx) / downsample);
-                const sy = Math.floor((oy + p.dy) / downsample);
-                if (sx >= 0 && sx < width && sy >= 0 && sy < height) offCtx.fillRect(sx, sy, 1, 1);
+                offCtx.fillRect(ox + p.dx, oy + p.dy, 1, 1);
             }
 
-            // apply blur on small canvas
+            // apply silhouette blur if enabled
             if (cfg.SILHOUETTE_BLUR_ENABLED && typeof offCtx.filter !== 'undefined') {
-                const r = Math.max(1, (cfg.SILHOUETTE_BLUR_RADIUS || 6) / downsample);
-                // copy to temp, apply filter, and blit back
+                const r = cfg.SILHOUETTE_BLUR_RADIUS || 6;
+                // create a temporary canvas to copy and blur
                 const tmp = document.createElement('canvas');
-                tmp.width = width;
-                tmp.height = height;
+                tmp.width = this._offscreen.width;
+                tmp.height = this._offscreen.height;
                 const tctx = tmp.getContext('2d');
-                const img = offCtx.getImageData(0,0,width,height);
-                tctx.putImageData(img, 0, 0);
+                tctx.fillStyle = this.node.color;
+                tctx.fillRect(0,0,tmp.width,tmp.height);
+                // draw the alpha mask then blur
+                const mask = offCtx.getImageData(0,0,this._offscreen.width,this._offscreen.height);
+                // clear and draw mask to tmp
+                tctx.clearRect(0,0,tmp.width,tmp.height);
+                tctx.putImageData(mask, 0, 0);
                 tctx.filter = `blur(${r}px)`;
-                const blurred = tctx.getImageData(0,0,width,height);
-                offCtx.clearRect(0,0,width,height);
+                const blurred = tctx.getImageData(0,0,tmp.width,tmp.height);
+                // clear offCtx and draw blurred result tinted by node color
+                offCtx.clearRect(0,0,this._offscreen.width,this._offscreen.height);
                 offCtx.putImageData(blurred, 0, 0);
             }
 
@@ -277,18 +271,9 @@ export class NodeRenderer {
             this._lastPixelChecksum = checksum;
         }
 
-        // Draw the blurred mask scaled up and tint with node color
-        // Use globalCompositeOperation to tint alpha mask
-        ctx.save();
-        const drawX = this.node.x + bounds.minX - this._offscreenBounds.marginWorld;
-        const drawY = this.node.y + bounds.minY - this._offscreenBounds.marginWorld;
-        // draw mask scaled up
-        ctx.globalAlpha = 1;
-        ctx.drawImage(this._offscreen, 0, 0, width, height, drawX, drawY, worldW, worldH);
-        // tint using destination-in trick: draw color rect, then apply mask
-        ctx.globalCompositeOperation = 'source-in';
-        ctx.fillStyle = this.node.color || '#4CAF50';
-        ctx.fillRect(drawX, drawY, worldW, worldH);
-        ctx.restore();
+        // draw offscreen to main ctx at correct position
+        const drawX = this.node.x + bounds.minX - this._offscreenBounds.margin;
+        const drawY = this.node.y + bounds.minY - this._offscreenBounds.margin;
+        ctx.drawImage(this._offscreen, drawX, drawY);
     }
 }
