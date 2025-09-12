@@ -96,6 +96,31 @@ export class PerformanceMonitor {
         
         // Force immediate performance log
         this.performanceMetrics.lastPerformanceLog = 0;
+        // Start realtime logging to help catch spikes during stress tests
+        if (this._realtimeInterval) clearInterval(this._realtimeInterval);
+        const self = this;
+        this._realtimeInterval = setInterval(() => {
+            try {
+                const ut = this.performanceMetrics.updateTime || 0;
+                const rt = this.performanceMetrics.renderTime || 0;
+                const total = this.performanceMetrics.totalPixels || 0;
+                if (ut > 10 || rt > 10 || total > 10000) {
+                    console.warn('Realtime performance spike detected', { updateTime: ut, renderTime: rt, totalPixels: total });
+                    // Log top 5 nodes by pixel count for inspection
+                    const ranked = (this.simulation.nodes || []).slice().sort((a,b) => (b.pixels.length||0) - (a.pixels.length||0)).slice(0,5);
+                    ranked.forEach((n, idx) => {
+                        console.log(`#${idx+1} node @ (${n.x},${n.y}) pixels=${n.pixels.length}`);
+                    });
+                }
+            } catch (e) { /* ignore logging errors */ }
+        }, 1000);
+    }
+
+    stopRealtimeLogging() {
+        if (this._realtimeInterval) {
+            clearInterval(this._realtimeInterval);
+            this._realtimeInterval = null;
+        }
     }
 
     shouldLogPerformance() {
