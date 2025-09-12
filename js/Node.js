@@ -18,9 +18,8 @@ export class Node {
         this.pulseAnimation = 0;
         this.simulation = null;
     this.lastFoodAmount = 0;
-    this.lastSpawnTime = 0; // timestamp (ms) of last automatic spawn
+    this.lastSpawnTime = 0; // timestamp (ms) of last automatic spawn (kept for compatibility)
     this.spawnCooldown = 5000; // cooldown in milliseconds between spawns
-    this.spawnTimer = null; // timeout id for scheduled spawn attempts
         
         // Initialize pixel array for organic shape
         this.pixels = [];
@@ -155,45 +154,7 @@ export class Node {
      * Schedule a spawn attempt after the remaining cooldown elapses.
      * This ensures surplus food will be used as soon as the cooldown expires.
      */
-    scheduleSpawnAttempt() {
-        // If there's already a timer scheduled, don't schedule another
-        if (this.spawnTimer) return;
-
-        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-        const timeSinceLast = now - this.lastSpawnTime;
-        const remaining = Math.max(0, this.spawnCooldown - timeSinceLast);
-
-        this.spawnTimer = setTimeout(() => this.attemptScheduledSpawn(), remaining + 10); // small buffer
-    }
-
-    /**
-     * Attempt to spawn when timer fires. If multiple spawns are possible, continue scheduling
-     * until food < 10.
-     */
-    attemptScheduledSpawn() {
-        this.spawnTimer = null;
-
-        if (!this.simulation) return;
-
-        // Try to spawn as many as cooldown permits; spawn() itself will enforce cooldown
-        while (this.food >= 10) {
-            const spawned = this.spawn();
-            if (!spawned) {
-                // If still blocked by cooldown (rare), schedule another attempt
-                this.scheduleSpawnAttempt();
-                return;
-            }
-
-            if (this.simulation.updateStats) this.simulation.updateStats();
-        }
-    }
-
-    cancelScheduledSpawn() {
-        if (this.spawnTimer) {
-            clearTimeout(this.spawnTimer);
-            this.spawnTimer = null;
-        }
-    }
+    // spawn scheduling removed: spawning is attempted immediately in storeFood()
 
     /**
      * Get the closest pixel to given coordinates
