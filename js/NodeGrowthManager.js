@@ -153,11 +153,14 @@ export class NodeGrowthManager {
         const targetX = Math.round(worldPoint.x) - this.node.x;
         const targetY = Math.round(worldPoint.y) - this.node.y;
 
-    // If the deposit lies on one of our existing pixels, start from that pixel to grow outward
+    // If the deposit lies on one of our existing pixels, prefer starting from the nearest edge pixel
     let startPixel = this._chooseEdgePixelTowards(targetX, targetY) || { dx: 0, dy: 0 };
-    // If the worldPoint corresponds to a pixel on this node, prefer starting there
+    // If the worldPoint corresponds to a pixel on this node, find nearest frontier pixel instead
     const relX = targetX, relY = targetY;
-    if (this.node.hasPixel(relX, relY)) startPixel = { dx: relX, dy: relY };
+    if (this.node.hasPixel(relX, relY)) {
+        const nearest = this._findNearestEdgePixel(relX, relY);
+        if (nearest) startPixel = nearest;
+    }
 
         // Build a short integer-stepped path (Bresenham-like) from startPixel toward (relX, relY)
         const maxSteps = 6; // cap path length per growth action
@@ -257,6 +260,21 @@ export class NodeGrowthManager {
                 }
             }
         }
+    }
+
+    _findNearestEdgePixel(x, y) {
+        const edgeSet = this.node.edgePixels;
+        if (!edgeSet || edgeSet.size === 0) return null;
+        let best = null;
+        let bestDist = Infinity;
+        for (const key of edgeSet) {
+            const [sx, sy] = key.split(',').map(Number);
+            const dx = sx - x;
+            const dy = sy - y;
+            const d = dx*dx + dy*dy;
+            if (d < bestDist) { bestDist = d; best = { dx: sx, dy: sy }; }
+        }
+        return best;
     }
 
     _addPixelIfMissing(dx, dy) {
