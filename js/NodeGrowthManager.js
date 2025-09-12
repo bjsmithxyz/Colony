@@ -26,10 +26,15 @@ export class NodeGrowthManager {
     processGrowth(amount, sourceDirection = null, depositLocation = null) {
         if (amount > 0) {
             const cfg = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
+            const debug = this.node.simulation ? this.node.simulation.CONFIG.DEBUG : null;
             const perPixel = (cfg && cfg.FOOD_PER_PIXEL) ? cfg.FOOD_PER_PIXEL : 1;
             const oldPixels = Math.floor(this.node.lastFoodAmount / perPixel);
             const newPixels = Math.floor(this.node.food / perPixel);
-            const delta = Math.max(0, newPixels - oldPixels);
+            let delta = Math.max(0, newPixels - oldPixels);
+            // apply safety cap if configured
+            if (debug && typeof debug.MAX_GROWTH_PER_TICK === 'number') {
+                delta = Math.min(delta, debug.MAX_GROWTH_PER_TICK);
+            }
             if (delta > 0) {
                 // If depositLocation provided, grow toward it delta times; otherwise grow randomly
                 for (let i = 0; i < delta; i++) {

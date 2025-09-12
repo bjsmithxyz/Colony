@@ -10,10 +10,14 @@ export const CONFIG = {
         MAX_NODES: 100,
         SPAWN_THRESHOLD: 10,
         FOOD_PER_PIXEL: 1,           // how much food is required for one growth pixel
-        GROWTH_BRANCH_CHANCE: 0.75,  // chance that a growth step will create a branch
+        GROWTH_BRANCH_CHANCE: 0.12,  // chance that a growth step will create a branch (lowered for safety)
         GROWTH_THICKNESS: 1          // thickness (in pixels) to add around growth paths
         ,
         GROWTH_RANDOM_DIR_CHANGE: 0.35 // chance each growth step to pick a less-targeted direction (more meandering)
+    },
+    // Safety caps for debugging/perf
+    DEBUG: {
+        MAX_GROWTH_PER_TICK: 8
     },
     INDIVIDUAL: {
         SIZE: 1,
