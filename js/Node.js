@@ -113,6 +113,8 @@ export class Node {
         if (this.pulseAnimation > 0) {
             this.pulseAnimation -= 0.05;
         }
+        // Process deferred growth actions queued by the growth manager
+        if (this.growthManager && typeof this.growthManager.tick === 'function') this.growthManager.tick();
     }
 
     /**

@@ -18,6 +18,8 @@ export class NodeGrowthManager {
             northwest: { length: 0, supportLevel: 0 }
         };
         this.totalGrowth = 0;
+        // Queue for deferred growth actions when spreading across frames
+        this._growthQueue = [];
     }
 
     /**
@@ -36,20 +38,38 @@ export class NodeGrowthManager {
                 delta = Math.min(delta, debug.MAX_GROWTH_PER_TICK);
             }
             if (delta > 0) {
-                // If depositLocation provided, grow toward it delta times; otherwise grow randomly
+                // Enqueue growth actions and let tick() apply them gradually
                 for (let i = 0; i < delta; i++) {
                     if (depositLocation) {
-                        this.growTowardWorldPoint(depositLocation);
+                        this._growthQueue.push({ type: 'toward', point: depositLocation });
                     } else if (sourceDirection) {
-                        this.growInDirection(sourceDirection, 1);
+                        this._growthQueue.push({ type: 'direction', direction: sourceDirection });
                     } else {
-                        // fallback: small random growth
                         const dirs = Object.keys(this.growthDirections);
                         const dir = dirs[Math.floor(Math.random() * dirs.length)];
-                        this.growInDirection(dir, 1);
+                        this._growthQueue.push({ type: 'direction', direction: dir });
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Process up to configured number of growth actions per frame.
+     * Call this from `Node.update()` once per frame.
+     */
+    tick() {
+        const cfg = this.node.simulation ? this.node.simulation.CONFIG : null;
+        const actionsPerFrame = (cfg && typeof cfg.GROWTH_ACTIONS_PER_FRAME === 'number') ? cfg.GROWTH_ACTIONS_PER_FRAME : 2;
+        let processed = 0;
+        while (processed < actionsPerFrame && this._growthQueue.length > 0) {
+            const action = this._growthQueue.shift();
+            if (action.type === 'toward') {
+                this.growTowardWorldPoint(action.point);
+            } else if (action.type === 'direction') {
+                this.growInDirection(action.direction, 1);
+            }
+            processed++;
         }
     }
 
