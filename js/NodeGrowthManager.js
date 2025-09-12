@@ -230,6 +230,8 @@ export class NodeGrowthManager {
     _addPixelIfMissing(dx, dy) {
         const exists = this.node.pixels.some(p => p.dx === dx && p.dy === dy);
         if (!exists) this.node.pixels.push({ dx, dy });
+        // Mark renderer dirty so caches can be rebuilt
+        if (this.node && typeof this.node.markRendererDirty === 'function') this.node.markRendererDirty();
     }
 
     _chooseEdgePixelTowards(targetX, targetY) {

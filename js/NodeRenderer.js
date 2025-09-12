@@ -5,6 +5,9 @@
 export class NodeRenderer {
     constructor(node) {
         this.node = node;
+        this._offscreen = null;
+        this._offscreenBounds = null;
+        this._isDirty = true;
     }
 
     /**
@@ -19,7 +22,12 @@ export class NodeRenderer {
     // Pulse animation removed to avoid spawn flash
         
         // Render the main node body
-        this.renderNodeBody(ctx);
+        const cfg = (this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.RENDER) ? this.node.simulation.CONFIG.RENDER : null;
+        if (cfg && cfg.OFFSCREEN_CANVAS_ENABLED) {
+            this._renderWithOffscreen(ctx, bounds, cfg);
+        } else {
+            this.renderNodeBody(ctx);
+        }
 
         // shared pool label removed
 
@@ -179,5 +187,69 @@ export class NodeRenderer {
         this.node.pixels.forEach(pixel => {
             ctx.fillRect(this.node.x + pixel.dx, this.node.y + pixel.dy, 1, 1);
         });
+    }
+
+    _markDirty() {
+        this._isDirty = true;
+    }
+
+    _renderWithOffscreen(ctx, bounds, cfg) {
+        // determine required offscreen bounds (add margin for blur)
+        const margin = (cfg.SILHOUETTE_BLUR_ENABLED ? (cfg.SILHOUETTE_BLUR_RADIUS || 6) : 0) + 2;
+        const width = (bounds.maxX - bounds.minX + 1) + margin * 2;
+        const height = (bounds.maxY - bounds.minY + 1) + margin * 2;
+
+        // recreate offscreen if size changed
+        if (!this._offscreen || !this._offscreenBounds || this._offscreenBounds.width !== width || this._offscreenBounds.height !== height) {
+            this._offscreen = document.createElement('canvas');
+            this._offscreen.width = Math.max(1, width);
+            this._offscreen.height = Math.max(1, height);
+            this._offscreenBounds = { width: this._offscreen.width, height: this._offscreen.height, margin };
+            this._isDirty = true;
+        }
+
+        const offCtx = this._offscreen.getContext('2d');
+
+        // rebuild offscreen if dirty
+        if (this._isDirty) {
+            offCtx.clearRect(0, 0, this._offscreen.width, this._offscreen.height);
+
+            // draw pixels into offscreen (offset by margin and node position)
+            offCtx.fillStyle = this.node.color;
+            const ox = margin + (0 - bounds.minX);
+            const oy = margin + (0 - bounds.minY);
+            for (const p of this.node.pixels) {
+                offCtx.fillRect(ox + p.dx, oy + p.dy, 1, 1);
+            }
+
+            // apply silhouette blur if enabled
+            if (cfg.SILHOUETTE_BLUR_ENABLED && typeof offCtx.filter !== 'undefined') {
+                const r = cfg.SILHOUETTE_BLUR_RADIUS || 6;
+                // create a temporary canvas to copy and blur
+                const tmp = document.createElement('canvas');
+                tmp.width = this._offscreen.width;
+                tmp.height = this._offscreen.height;
+                const tctx = tmp.getContext('2d');
+                tctx.fillStyle = this.node.color;
+                tctx.fillRect(0,0,tmp.width,tmp.height);
+                // draw the alpha mask then blur
+                const mask = offCtx.getImageData(0,0,this._offscreen.width,this._offscreen.height);
+                // clear and draw mask to tmp
+                tctx.clearRect(0,0,tmp.width,tmp.height);
+                tctx.putImageData(mask, 0, 0);
+                tctx.filter = `blur(${r}px)`;
+                const blurred = tctx.getImageData(0,0,tmp.width,tmp.height);
+                // clear offCtx and draw blurred result tinted by node color
+                offCtx.clearRect(0,0,this._offscreen.width,this._offscreen.height);
+                offCtx.putImageData(blurred, 0, 0);
+            }
+
+            this._isDirty = false;
+        }
+
+        // draw offscreen to main ctx at correct position
+        const drawX = this.node.x + bounds.minX - this._offscreenBounds.margin;
+        const drawY = this.node.y + bounds.minY - this._offscreenBounds.margin;
+        ctx.drawImage(this._offscreen, drawX, drawY);
     }
 }

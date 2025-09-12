@@ -30,8 +30,18 @@ export class Node {
         this.renderer = new NodeRenderer(this);
         this.shapeGenerator = new NodeShapeGenerator(this);
         
+        // Renderer dirty flag for caching
+        this.rendererDirty = true;
+
         // Generate initial organic shape
         this.shapeGenerator.generateOrganicShape();
+        this.markRendererDirty();
+    }
+
+    markRendererDirty() {
+        this.rendererDirty = true;
+        // also notify renderer instance if present
+        if (this.renderer) this.renderer._markDirty && this.renderer._markDirty();
     }
 
     /**
