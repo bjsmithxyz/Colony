@@ -33,6 +33,15 @@ export class NodeGrowthManager {
             const oldPixels = Math.floor(this.node.lastFoodAmount / perPixel);
             const newPixels = Math.floor(this.node.food / perPixel);
             let delta = Math.max(0, newPixels - oldPixels);
+            // Lightweight debug: always log computed delta to help detect enqueue problems
+            try {
+                if (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) {
+                    console.log('processGrowth computed', { nodeX: this.node.x, nodeY: this.node.y, amount, oldPixels, newPixels, delta });
+                } else {
+                    // also surface to console.debug so it's available when devtools show verbose logs
+                    console.debug && console.debug('processGrowth', { x: this.node.x, y: this.node.y, amount, oldPixels, newPixels, delta });
+                }
+            } catch (e) {}
             // apply safety cap if configured
             if (debug && typeof debug.MAX_GROWTH_PER_TICK === 'number') {
                 delta = Math.min(delta, debug.MAX_GROWTH_PER_TICK);
@@ -42,12 +51,15 @@ export class NodeGrowthManager {
                 for (let i = 0; i < delta; i++) {
                     if (depositLocation) {
                         this._growthQueue.push({ type: 'toward', point: depositLocation });
+                        if (this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) console.log('Enqueued toward growth', this.node.x, this.node.y, depositLocation);
                     } else if (sourceDirection) {
                         this._growthQueue.push({ type: 'direction', direction: sourceDirection });
+                        if (this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) console.log('Enqueued dir growth', this.node.x, this.node.y, sourceDirection);
                     } else {
                         const dirs = Object.keys(this.growthDirections);
                         const dir = dirs[Math.floor(Math.random() * dirs.length)];
                         this._growthQueue.push({ type: 'direction', direction: dir });
+                        if (this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) console.log('Enqueued rand growth', this.node.x, this.node.y, dir);
                     }
                 }
             }
@@ -62,8 +74,16 @@ export class NodeGrowthManager {
         const cfg = this.node.simulation ? this.node.simulation.CONFIG : null;
         const actionsPerFrame = (cfg && typeof cfg.GROWTH_ACTIONS_PER_FRAME === 'number') ? cfg.GROWTH_ACTIONS_PER_FRAME : 2;
         let processed = 0;
+        // Debug: report queue size when non-empty
+        try {
+            if (this._growthQueue.length > 0) {
+                if (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) console.log('tick starting with queue', this._growthQueue.length, 'actionsPerFrame', actionsPerFrame, 'node', this.node.x, this.node.y);
+                else console.debug && console.debug('tick queue', this._growthQueue.length, 'apf', actionsPerFrame, 'node', this.node.x, this.node.y);
+            }
+        } catch (e) {}
         while (processed < actionsPerFrame && this._growthQueue.length > 0) {
             const action = this._growthQueue.shift();
+            if (this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) console.log('Processing growth action', action, 'for node', this.node.x, this.node.y);
             if (action.type === 'toward') {
                 this.growTowardWorldPoint(action.point);
             } else if (action.type === 'direction') {
@@ -181,6 +201,39 @@ export class NodeGrowthManager {
             sx = nx; sy = ny;
         }
 
+        // Debug: log computed path and endpoints when enabled (explicit numeric values)
+        try {
+            const dbg = this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG;
+            if (dbg) {
+                console.log('growTowardWorldPoint', 'node', this.node.x, this.node.y, 'start', startPixel.dx, startPixel.dy, 'target', relX, relY, 'pathLen', path.length, 'path', path);
+            } else {
+                console.debug && console.debug('growTowardWorldPoint', 'start', startPixel.dx, startPixel.dy, 'target', relX, relY, 'pathLen', path.length);
+            }
+        } catch (e) {}
+
+        // Fallback: if no path was found (all intermediate pixels already occupied or target adjacent),
+        // attempt a small outward step from the chosen start pixel so growth remains visible.
+        if (path.length === 0) {
+            try {
+                const sxFallback = startPixel.dx;
+                const syFallback = startPixel.dy;
+                const stepX = sxFallback === 0 ? (relX > sxFallback ? 1 : -1) : (sxFallback > 0 ? 1 : -1);
+                const stepY = syFallback === 0 ? (relY > syFallback ? 1 : -1) : (syFallback > 0 ? 1 : -1);
+                const fx = sxFallback + stepX;
+                const fy = syFallback + stepY;
+                if (!(this.node.hasPixel && this.node.hasPixel(fx, fy))) {
+                    if (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) {
+                        console.log('growTowardWorldPoint fallback add', fx, fy, 'from start', sxFallback, syFallback, 'target', relX, relY);
+                    }
+                    this._addPixelIfMissing(fx, fy);
+                } else {
+                    if (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) {
+                        console.log('growTowardWorldPoint fallback found existing pixel', fx, fy);
+                    }
+                }
+            } catch (e) {}
+        }
+
         // Apply path as a batch: add pixels and thickness and branching around each step
         const thickness = (this.node.simulation && this.node.simulation.CONFIG.NODE.GROWTH_THICKNESS) || 1;
         for (const newPixel of path) {
@@ -279,6 +332,9 @@ export class NodeGrowthManager {
 
     _addPixelIfMissing(dx, dy) {
         if (this.node && typeof this.node.addPixel === 'function') {
+            try {
+                if (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) console.log('Attempt addPixel', this.node.x, this.node.y, dx, dy);
+            } catch (e) {}
             return this.node.addPixel(dx, dy);
         }
         const exists = this.node.pixels.some(p => p.dx === dx && p.dy === dy);

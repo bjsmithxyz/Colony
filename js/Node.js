@@ -61,6 +61,9 @@ export class Node {
         if (this.pixelSet.has(key)) return false;
         this.pixelSet.add(key);
         this.pixels.push({ dx, dy });
+        if (this.simulation && this.simulation.CONFIG && this.simulation.CONFIG.DEBUG_GROWTH_LOG) {
+            console.log('Node.addPixel', this.x, this.y, dx, dy, 'total', this.pixels.length);
+        }
         // update edgePixels: new pixel may create new frontier entries around it
         const neigh = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
         let isEdge = false;
