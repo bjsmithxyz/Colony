@@ -33,6 +33,50 @@ export class SpatialGrid {
         }
     }
 
+    /**
+     * Insert an entity into all cells overlapping a bounding box (used for nodes)
+     * box: { minX, minY, maxX, maxY }
+     */
+    insertBox(entity, box) {
+        const minCol = Math.max(0, Math.floor(box.minX / this.cellSize));
+        const maxCol = Math.min(this.cols - 1, Math.floor(box.maxX / this.cellSize));
+        const minRow = Math.max(0, Math.floor(box.minY / this.cellSize));
+        const maxRow = Math.min(this.rows - 1, Math.floor(box.maxY / this.cellSize));
+
+        for (let row = minRow; row <= maxRow; row++) {
+            for (let col = minCol; col <= maxCol; col++) {
+                const index = row * this.cols + col;
+                this.grid[index].push(entity);
+            }
+        }
+    }
+
+    queryBox(box) {
+        const results = [];
+        const minCol = Math.max(0, Math.floor(box.minX / this.cellSize));
+        const maxCol = Math.min(this.cols - 1, Math.floor(box.maxX / this.cellSize));
+        const minRow = Math.max(0, Math.floor(box.minY / this.cellSize));
+        const maxRow = Math.min(this.rows - 1, Math.floor(box.maxY / this.cellSize));
+
+        const seen = new Set();
+        for (let row = minRow; row <= maxRow; row++) {
+            for (let col = minCol; col <= maxCol; col++) {
+                const index = row * this.cols + col;
+                const cell = this.grid[index];
+                for (let i = 0; i < cell.length; i++) {
+                    const entity = cell[i];
+                    const id = entity._sgid || (entity._sgid = Math.random().toString(36).slice(2));
+                    if (!seen.has(id)) {
+                        seen.add(id);
+                        results.push(entity);
+                    }
+                }
+            }
+        }
+
+        return results;
+    }
+
     queryRadius(x, y, radius) {
         const results = [];
         const minCol = Math.max(0, Math.floor((x - radius) / this.cellSize));

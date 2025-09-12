@@ -24,15 +24,25 @@ export class NodeGrowthManager {
      * Trigger growth based on food storage
      */
     processGrowth(amount, sourceDirection = null, depositLocation = null) {
-        if (sourceDirection && amount > 0) {
-            // Every 5 food causes 1 pixel growth in the source direction
-            const newGrowthPixels = Math.floor(this.node.food / 5) - Math.floor(this.node.lastFoodAmount / 5);
-            if (newGrowthPixels > 0) {
-                // Grow from the deposit location if provided, otherwise from center
-                if (depositLocation) {
-                    this.growFromLocation(depositLocation, sourceDirection, newGrowthPixels);
-                } else {
-                    this.growInDirection(sourceDirection, newGrowthPixels);
+        if (amount > 0) {
+            const cfg = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
+            const perPixel = (cfg && cfg.FOOD_PER_PIXEL) ? cfg.FOOD_PER_PIXEL : 1;
+            const oldPixels = Math.floor(this.node.lastFoodAmount / perPixel);
+            const newPixels = Math.floor(this.node.food / perPixel);
+            const delta = Math.max(0, newPixels - oldPixels);
+            if (delta > 0) {
+                // If depositLocation provided, grow toward it delta times; otherwise grow randomly
+                for (let i = 0; i < delta; i++) {
+                    if (depositLocation) {
+                        this.growTowardWorldPoint(depositLocation);
+                    } else if (sourceDirection) {
+                        this.growInDirection(sourceDirection, 1);
+                    } else {
+                        // fallback: small random growth
+                        const dirs = Object.keys(this.growthDirections);
+                        const dir = dirs[Math.floor(Math.random() * dirs.length)];
+                        this.growInDirection(dir, 1);
+                    }
                 }
             }
         }
@@ -113,6 +123,150 @@ export class NodeGrowthManager {
     }
 
     /**
+     * Grow toward a world coordinate (depositLocation) using discrete stepping (Bresenham-like)
+     */
+    growTowardWorldPoint(worldPoint) {
+        // Convert world point to relative pixel coordinates from node center
+        const targetX = Math.round(worldPoint.x) - this.node.x;
+        const targetY = Math.round(worldPoint.y) - this.node.y;
+
+        // If the deposit lies on one of our existing pixels, start from that pixel to grow outward
+        let startPixel = this._chooseEdgePixelTowards(targetX, targetY) || { dx: 0, dy: 0 };
+        // If the worldPoint corresponds to a pixel on this node, prefer starting there
+        const relX = targetX, relY = targetY;
+        const onNode = this.node.pixels.find(p => p.dx === relX && p.dy === relY);
+        if (onNode) startPixel = onNode;
+
+        // Evaluate 8 neighbor candidates around startPixel and pick one with weighted randomness
+        const neighbors = [
+            { x: startPixel.dx + 1, y: startPixel.dy },
+            { x: startPixel.dx - 1, y: startPixel.dy },
+            { x: startPixel.dx, y: startPixel.dy + 1 },
+            { x: startPixel.dx, y: startPixel.dy - 1 },
+            { x: startPixel.dx + 1, y: startPixel.dy + 1 },
+            { x: startPixel.dx - 1, y: startPixel.dy - 1 },
+            { x: startPixel.dx + 1, y: startPixel.dy - 1 },
+            { x: startPixel.dx - 1, y: startPixel.dy + 1 }
+        ];
+
+        // Score neighbors by alignment to target and add small randomness for organic paths
+        const scored = neighbors.map(n => {
+            const vx = relX - n.x;
+            const vy = relY - n.y;
+            const distSq = vx * vx + vy * vy;
+            // Prefer neighbors that reduce distance to target (lower distSq), but add randomness
+            const score = 1 / (1 + distSq) + (Math.random() * 0.3 - 0.15);
+            return { n, score };
+        }).sort((a, b) => b.score - a.score);
+
+        // Probabilistically choose among candidates. Occasionally pick a less-targeted neighbor to encourage meandering
+        const cfg = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
+        const randomDirProb = (cfg && typeof cfg.GROWTH_RANDOM_DIR_CHANGE === 'number') ? cfg.GROWTH_RANDOM_DIR_CHANGE : 0.35;
+
+        let chosen;
+        if (Math.random() < randomDirProb) {
+            // pick randomly among the top 4 to encourage direction changes
+            const choicePool = scored.slice(0, Math.max(1, Math.min(4, scored.length)));
+            chosen = choicePool[Math.floor(Math.random() * choicePool.length)].n;
+        } else {
+            const topK = Math.max(1, Math.min(3, scored.length));
+            const pickIndex = Math.min(topK - 1, Math.floor(Math.random() * topK + (Math.random() < 0.6 ? 0 : 1)));
+            chosen = scored[pickIndex].n;
+        }
+
+        const newPixel = { dx: chosen.x, dy: chosen.y };
+
+        // Add thickness around the path
+        this._addPixelIfMissing(newPixel.dx, newPixel.dy);
+        const thickness = (this.node.simulation && this.node.simulation.CONFIG.NODE.GROWTH_THICKNESS) || 1;
+        for (let t = 1; t <= thickness; t++) {
+            this._addPixelIfMissing(newPixel.dx + t, newPixel.dy);
+            this._addPixelIfMissing(newPixel.dx - t, newPixel.dy);
+            this._addPixelIfMissing(newPixel.dx, newPixel.dy + t);
+            this._addPixelIfMissing(newPixel.dx, newPixel.dy - t);
+        }
+
+        // Random branching: sometimes create additional neighbor pixels nearby
+        const branchChance = (this.node.simulation && this.node.simulation.CONFIG.NODE.GROWTH_BRANCH_CHANCE) || 0.12;
+        if (Math.random() < branchChance) {
+            // pick a nearby neighbor that's not already filled
+            const branchCandidates = neighbors.filter(nb => !(this.node.pixels.some(p => p.dx === nb.x && p.dy === nb.y)));
+            if (branchCandidates.length > 0) {
+                const b = branchCandidates[Math.floor(Math.random() * branchCandidates.length)];
+                this._addPixelIfMissing(b.x, b.y);
+            }
+        }
+
+        // Extra fork behavior: occasionally grow an additional step from a nearby existing pixel
+        const forkExtraChance = (this.node.simulation && typeof this.node.simulation.CONFIG.NODE.GROWTH_BRANCH_CHANCE === 'number') ? (this.node.simulation.CONFIG.NODE.GROWTH_BRANCH_CHANCE * 0.6) : 0.07;
+        if (Math.random() < forkExtraChance) {
+            // find pixels near the newly added pixel within distance 2
+            const nearby = this.node.pixels.filter(p => Math.abs(p.dx - newPixel.dx) <= 2 && Math.abs(p.dy - newPixel.dy) <= 2 && !(p.dx === newPixel.dx && p.dy === newPixel.dy));
+            if (nearby.length > 0) {
+                const src = nearby[Math.floor(Math.random() * nearby.length)];
+                // pick a random neighbor of src and add it
+                const cand = [
+                    { x: src.dx + 1, y: src.dy }, { x: src.dx - 1, y: src.dy },
+                    { x: src.dx, y: src.dy + 1 }, { x: src.dx, y: src.dy - 1 },
+                    { x: src.dx + 1, y: src.dy + 1 }, { x: src.dx - 1, y: src.dy - 1 }
+                ];
+                const picked = cand[Math.floor(Math.random() * cand.length)];
+                this._addPixelIfMissing(picked.x, picked.y);
+            }
+        }
+
+        // After adding, check for immediate merge: if the new pixel lies on another node, merge
+        const worldX = this.node.x + newPixel.dx;
+        const worldY = this.node.y + newPixel.dy;
+        if (this.node.simulation) {
+            const other = this.node.simulation.getNodeAt(worldX, worldY);
+            if (other && other !== this.node) {
+                // Merge immediately: larger node survives
+                this.node.simulation.mergeNodes(this.node, other);
+            }
+        }
+    }
+
+    _addPixelIfMissing(dx, dy) {
+        const exists = this.node.pixels.some(p => p.dx === dx && p.dy === dy);
+        if (!exists) this.node.pixels.push({ dx, dy });
+    }
+
+    _chooseEdgePixelTowards(targetX, targetY) {
+        if (this.node.pixels.length === 0) return null;
+        // Find pixel with maximum projection toward target vector
+        let best = null;
+        let bestProj = -Infinity;
+        for (const p of this.node.pixels) {
+            const proj = p.dx * targetX + p.dy * targetY;
+            if (proj > bestProj) { bestProj = proj; best = p; }
+        }
+        return best;
+    }
+
+    _stepTowards(sx, sy, tx, ty) {
+        // Compute delta and normalize to nearest integer step each axis (-1,0,1)
+        const dx = tx - sx;
+        const dy = ty - sy;
+        const stepX = dx === 0 ? 0 : (dx > 0 ? 1 : -1);
+        const stepY = dy === 0 ? 0 : (dy > 0 ? 1 : -1);
+
+        return { x: sx + stepX, y: sy + stepY };
+    }
+
+    _perpendicularStep(sx, sy, tx, ty) {
+        const dx = tx - sx;
+        const dy = ty - sy;
+        // Perpendicular vector
+        const px = -dy;
+        const py = dx;
+        if (px === 0 && py === 0) return null;
+        const nx = sx + (px > 0 ? 1 : (px < 0 ? -1 : 0));
+        const ny = sy + (py > 0 ? 1 : (py < 0 ? -1 : 0));
+        return { x: nx, y: ny };
+    }
+
+    /**
      * Add support pixels for structural integrity
      */
     addSupportPixels(direction, count) {
@@ -170,63 +324,11 @@ export class NodeGrowthManager {
      * Grow from a specific location (used for deposit-based growth)
      */
     growFromLocation(depositPixel, direction, pixels) {
-        const directionVectors = {
-            north: { dx: 0, dy: -1 },
-            northeast: { dx: 1, dy: -1 },
-            east: { dx: 1, dy: 0 },
-            southeast: { dx: 1, dy: 1 },
-            south: { dx: 0, dy: 1 },
-            southwest: { dx: -1, dy: 1 },
-            west: { dx: -1, dy: 0 },
-            northwest: { dx: -1, dy: -1 }
-        };
-        
-        const vector = directionVectors[direction];
-        if (!vector) return;
-        
-        let currentPixel = depositPixel;
-        const newGrowthPixels = [];
-        
-        // Add growth pixels in the specified direction
+        // Legacy directional method retained for compatibility, convert depositPixel to a world point
+        // depositPixel expected as { x, y } in world coords
         for (let i = 0; i < pixels; i++) {
-            // Try to add pixel in the direction
-            const newPixel = {
-                dx: currentPixel.dx + vector.dx,
-                dy: currentPixel.dy + vector.dy
-            };
-            
-            const exists = this.node.pixels.some(p => p.dx === newPixel.dx && p.dy === newPixel.dy);
-            if (!exists) {
-                this.node.pixels.push(newPixel);
-                newGrowthPixels.push(newPixel);
-                currentPixel = newPixel;
-            } else {
-                // Try alternative positions if blocked
-                const alternatives = [
-                    { dx: newPixel.dx + 1, dy: newPixel.dy },
-                    { dx: newPixel.dx - 1, dy: newPixel.dy },
-                    { dx: newPixel.dx, dy: newPixel.dy + 1 },
-                    { dx: newPixel.dx, dy: newPixel.dy - 1 }
-                ];
-                
-                let placed = false;
-                for (const altPixel of alternatives) {
-                    const altExists = this.node.pixels.some(p => p.dx === altPixel.dx && p.dy === altPixel.dy);
-                    if (!altExists) {
-                        this.node.pixels.push(altPixel);
-                        newGrowthPixels.push(altPixel);
-                        currentPixel = altPixel;
-                        placed = true;
-                        break;
-                    }
-                }
-                
-                if (!placed) break; // Can't grow further
-            }
+            this.growTowardWorldPoint({ x: depositPixel.x, y: depositPixel.y });
         }
-        
-        // Now add comprehensive thickness to all new growth pixels
-        this.addThicknessToGrowth(newGrowthPixels, direction);
     }
 
     /**

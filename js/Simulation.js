@@ -35,23 +35,44 @@ export class Simulation {
         this.frameCount = 0;
         this.selectedTarget = null;
         
-        // Statistics
-        this.totalFoodCollected = 0;
-        this.totalIndividualsSpawned = 0;
-        // Track milestones for node-dropping individuals
-        this._nextDropAt = 150;
-        this._markNextSpawnAsDropper = false;
-        // Shared resource pool for nodes (nodes will reference this.sharedNodePool)
-        this.sharedNodePool = { totalFood: 0 };
+    // Statistics
+    this.totalFoodCollected = 0; // cumulative total collected
+    this.totalIndividualsSpawned = 0;
+    // Track milestones for node-dropping individuals
+    this._nextDropAt = 150;
+    this._markNextSpawnAsDropper = false;
+    // Shared resource pool for nodes (nodes will reference this.sharedNodePool)
+    this.sharedNodePool = { totalFood: 0 };
+
+        // Player controls: allow one manual drop only (initially true)
+        this.playerCanDropNodes = true;
+        // Ensure cursor matches state
+        this._updateCanvasCursor = () => {
+            try {
+                if (this.canvas && this.canvas.classList) {
+                    if (this.playerCanDropNodes) {
+                        this.canvas.classList.add('can-drop');
+                        this.canvas.classList.remove('cannot-drop');
+                    } else {
+                        this.canvas.classList.remove('can-drop');
+                        this.canvas.classList.add('cannot-drop');
+                    }
+                }
+            } catch (e) {}
+        };
+        this._updateCanvasCursor();
     }
 
     /**
      * Called by Node.storeFood when food is added to a node.
-     * Checks for milestones to mark the next spawned individual as a dropper.
+     * Updates the shared pool total and checks milestone for dropper spawning.
      */
     checkFoodMilestone(node, amount) {
         // Update shared pool total
-        if (node.sharedPool) node.sharedPool.totalFood += amount;
+        if (node.sharedPool) node.sharedPool.totalFood = (node.sharedPool.totalFood || 0) + amount;
+
+        // Update cumulative total
+        this.totalFoodCollected += amount;
 
         // If totalFoodCollected reached next threshold, mark flag so that the next spawned individual will be a dropper
         if (this.totalFoodCollected >= this._nextDropAt) {
@@ -87,7 +108,9 @@ export class Simulation {
         // Core systems
         this.trailSystem = new TrailSystem(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT);
     // Module system removed
-        this.spatialGrid = new SpatialGrid(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 32);
+    this.spatialGrid = new SpatialGrid(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 32);
+    // Separate grid for nodes where we insert node bounding boxes for faster pixel collision checks
+    this.nodeGrid = new SpatialGrid(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 64);
         this.dirtyRectManager = new DirtyRectManager(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 64);
     // LevelOfDetail and LOD controls removed
         
@@ -103,7 +126,7 @@ export class Simulation {
         this.renderer = new SimulationRenderer(this);
         this.contextMenuManager = new ContextMenuManager(this);
         this.performanceMonitor = new PerformanceMonitor(this);
-        // Create container for node spawn bars (bottom-left UI)
+    // Create container for node spawn bars (bottom-right UI)
         this.nodeBarContainer = document.getElementById('nodeSpawnBars');
         if (!this.nodeBarContainer) {
             this.nodeBarContainer = document.createElement('div');
@@ -123,9 +146,12 @@ export class Simulation {
             this._updateNodeBarPosition = () => {
                 try {
                     const rect = this.canvas.getBoundingClientRect();
-                    // place 10px inset from canvas left, and 10px above canvas bottom
-                    this.nodeBarContainer.style.left = `${Math.round(rect.left + -40)}px`;
-                    const bottomPx = Math.max(0, Math.round(window.innerHeight - rect.bottom + 10));
+                    // place -80px inset from canvas right, and 0px above canvas bottom
+                    const rightPx = Math.max(0, Math.round(window.innerWidth - rect.right + -80));
+                    this.nodeBarContainer.style.right = `${rightPx}px`;
+                    // clear left to avoid conflicts
+                    this.nodeBarContainer.style.left = '';
+                    const bottomPx = Math.max(0, Math.round(window.innerHeight - rect.bottom + 0));
                     this.nodeBarContainer.style.bottom = `${bottomPx}px`;
                 } catch (e) { }
             };
@@ -167,6 +193,7 @@ export class Simulation {
         
         // Clear and rebuild spatial grid
         this.spatialGrid.clear();
+        this.nodeGrid.clear();
         
         // Update entities
         this.updateNodes();
@@ -216,7 +243,20 @@ export class Simulation {
     }
 
     updateNodes() {
-        this.nodes.forEach(node => node.update());
+        this.nodes.forEach(node => {
+            node.update();
+            // Insert node into nodeGrid using its bounds
+            try {
+                const b = node.getBounds();
+                const box = {
+                    minX: Math.floor(node.x + b.minX),
+                    minY: Math.floor(node.y + b.minY),
+                    maxX: Math.floor(node.x + b.maxX),
+                    maxY: Math.floor(node.y + b.maxY)
+                };
+                this.nodeGrid.insertBox(node, box);
+            } catch (e) {}
+        });
     }
 
     updateIndividuals() {
@@ -267,11 +307,13 @@ export class Simulation {
             const y = Math.max(0, Math.min(individual.y, this.CONFIG.MAP.HEIGHT - 1));
             const newNode = this.addNode(x, y, { createInitialIndividual: true });
             if (newNode) {
-                newNode.droppedNode = true;
-                // Clear the dropped marker after 10 seconds
-                setTimeout(() => {
-                    try { newNode.droppedNode = false; } catch (e) { /* node may be removed */ }
-                }, 10000);
+                // Initialize a timed drop ping that lasts for 3 seconds
+                try {
+                    newNode.dropPingStart = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+                    newNode.dropPingDuration = 2000; // milliseconds (2s)
+                } catch (e) {
+                    // Node may be removed immediately in some edge cases
+                }
             }
         }
 
@@ -358,6 +400,61 @@ export class Simulation {
         }
     }
 
+    /**
+     * Merge two nodes: larger node survives and absorbs smaller node's pixels, food, and individuals.
+     * Removes the smaller node from simulation.nodes and updates stats/UI.
+     */
+    mergeNodes(nodeA, nodeB) {
+        try {
+            if (!nodeA || !nodeB || nodeA === nodeB) return;
+
+            // Determine sizes by pixel count
+            const sizeA = nodeA.pixels.length || 0;
+            const sizeB = nodeB.pixels.length || 0;
+
+            let survivor = nodeA;
+            let absorbed = nodeB;
+            if (sizeB > sizeA) {
+                survivor = nodeB;
+                absorbed = nodeA;
+            }
+
+            // Transfer pixels (avoid duplicates)
+            for (const p of absorbed.pixels) {
+                const exists = survivor.pixels.some(sp => sp.dx === p.dx && sp.dy === p.dy);
+                if (!exists) survivor.pixels.push({ dx: p.dx + (absorbed.x - survivor.x), dy: p.dy + (absorbed.y - survivor.y) });
+            }
+
+            // Transfer food
+            survivor.food += absorbed.food || 0;
+
+            // Transfer individuals: reassign parentNode and move into survivor.individuals
+            while (absorbed.individuals && absorbed.individuals.length > 0) {
+                const ind = absorbed.individuals.pop();
+                ind.parentNode = survivor;
+                survivor.individuals.push(ind);
+            }
+
+            // Remove absorbed node from simulation list
+            const idx = this.nodes.indexOf(absorbed);
+            if (idx > -1) {
+                this.nodes.splice(idx, 1);
+            }
+
+            // Remove spawn bar element if present
+            try {
+                if (absorbed._spawnBarEl && absorbed._spawnBarEl.wrapper && absorbed._spawnBarEl.wrapper.parentNode) {
+                    absorbed._spawnBarEl.wrapper.parentNode.removeChild(absorbed._spawnBarEl.wrapper);
+                }
+            } catch (e) {}
+
+            // Update stats
+            this.updateStats();
+        } catch (e) {
+            console.error('Error merging nodes:', e);
+        }
+    }
+
     generateFoodSources() {
         const numSources = 20 + Math.floor(Math.random() * 15); // Increased to 20-35 sources
         
@@ -370,13 +467,28 @@ export class Simulation {
 
     // Utility methods
     getNodeAt(x, y) {
-        return this.nodes.find(node => {
-            return node.pixels.some(pixel => {
-                const px = node.x + pixel.dx;
-                const py = node.y + pixel.dy;
-                return x >= px && x < px + 1 && y >= py && y < py + 1;
-            });
-        });
+        // Query nodeGrid first to reduce candidate nodes
+        try {
+            const candidates = this.nodeGrid.queryBox({ minX: x, minY: y, maxX: x, maxY: y });
+            for (const node of candidates) {
+                for (const pixel of node.pixels) {
+                    const px = node.x + pixel.dx;
+                    const py = node.y + pixel.dy;
+                    if (x >= px && x < px + 1 && y >= py && y < py + 1) return node;
+                }
+            }
+        } catch (e) {
+            // fallback to brute force
+            for (const node of this.nodes) {
+                for (const pixel of node.pixels) {
+                    const px = node.x + pixel.dx;
+                    const py = node.y + pixel.dy;
+                    if (x >= px && x < px + 1 && y >= py && y < py + 1) return node;
+                }
+            }
+        }
+
+        return undefined;
     }
     
     findNearbyEntities(x, y, radius) {
@@ -446,7 +558,6 @@ export class Simulation {
             this.nodes = [];
             this.individuals = [];
             this.foodSources = [];
-            this.totalFoodCollected = 0;
             this.totalIndividualsSpawned = 0;
             this.selectedTarget = null;
             // Remove all spawn bar elements
@@ -457,8 +568,14 @@ export class Simulation {
             } catch (e) {}
             
             this.generateFoodSources();
+            // Reset shared pool and counters
+            if (this.sharedNodePool) this.sharedNodePool.totalFood = 0;
+            this.totalFoodCollected = 0;
             this.updateStats();
             // updateNodeControls call removed
+            // Re-enable player's ability to drop the initial node after reset
+            this.playerCanDropNodes = true;
+            if (this._updateCanvasCursor) this._updateCanvasCursor();
             
             console.log('Simulation reset');
         }

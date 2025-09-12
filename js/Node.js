@@ -72,6 +72,10 @@ export class Node {
             
                 // Deduct food cost
                 this.food -= 10;
+                // Reflect spend in shared pool if present
+                if (this.sharedPool) {
+                    this.sharedPool.totalFood = Math.max(0, (this.sharedPool.totalFood || 0) - 10);
+                }
 
                 // Record spawn time for cooldown
                 this.lastSpawnTime = now;
@@ -79,7 +83,7 @@ export class Node {
                 this.simulation.individuals.push(individual);
                 this.individuals.push(individual);
                 this.simulation.totalIndividualsSpawned++;
-                this.pulseAnimation = 1;
+                // pulse animation removed to prevent spawn flash
 
                 return true;
     }
@@ -96,14 +100,23 @@ export class Node {
      */
     storeFood(amount, sourceDirection = null, depositLocation = null) {
         this.food += amount;
-        // If this node participates in a shared pool, also add to shared total
-        if (this.sharedPool) this.sharedPool.totalFood = (this.sharedPool.totalFood || 0) + amount;
-        if (this.simulation && amount > 0) {
-            this.simulation.totalFoodCollected += amount;
-            // Notify simulation about food milestone so it can set dropper flags
-            if (this.simulation.checkFoodMilestone) this.simulation.checkFoodMilestone(this, amount);
+        // Notify simulation about food milestone so it can set dropper flags (if implemented)
+        if (this.simulation && amount > 0 && this.simulation.checkFoodMilestone) {
+            this.simulation.checkFoodMilestone(this, amount);
         }
         
+        // Normalize depositLocation (if provided) to world integer coords within bounds
+        if (depositLocation && typeof depositLocation.x === 'number' && typeof depositLocation.y === 'number') {
+            const maxX = this.simulation ? this.simulation.CONFIG.MAP.WIDTH - 1 : Infinity;
+            const maxY = this.simulation ? this.simulation.CONFIG.MAP.HEIGHT - 1 : Infinity;
+            depositLocation = {
+                x: Math.max(0, Math.min(maxX, Math.round(depositLocation.x))),
+                y: Math.max(0, Math.min(maxY, Math.round(depositLocation.y)))
+            };
+        } else {
+            depositLocation = null;
+        }
+
         // Delegate growth processing to growth manager
         this.growthManager.processGrowth(amount, sourceDirection, depositLocation);
         

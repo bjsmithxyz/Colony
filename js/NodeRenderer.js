@@ -16,19 +16,15 @@ export class NodeRenderer {
         // Render beacon effect
         this.renderBeaconEffect(ctx);
         
-        // Render pulse animation when spawning
-        this.renderPulseAnimation(ctx, bounds);
+    // Pulse animation removed to avoid spawn flash
         
         // Render the main node body
         this.renderNodeBody(ctx);
 
-        // If this node participates in a shared pool, render a small label with shared total
-        if (this.node.sharedPool) {
-            this.renderSharedPoolLabel(ctx);
-        }
+        // shared pool label removed
 
-        // If this node was created by a dropper (recently dropped), render a subtle halo
-        if (this.node.droppedNode) {
+        // If this node has an active drop ping, render the dissipating ping
+        if (this.node.dropPingStart && (this.node.dropPingDuration || 0) > 0) {
             this.renderDroppedHalo(ctx);
         }
     }
@@ -79,26 +75,77 @@ export class NodeRenderer {
         }
     }
 
-    renderSharedPoolLabel(ctx) {
-        const label = `${this.node.food || 0}`;
-        ctx.save();
-        ctx.font = '10px monospace';
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-        ctx.lineWidth = 2;
-        // Position label slightly above node center
-        ctx.strokeText(label, this.node.x + 6, this.node.y - 6);
-        ctx.fillText(label, this.node.x + 6, this.node.y - 6);
-        ctx.restore();
-    }
+    // renderSharedPoolLabel removed
 
     renderDroppedHalo(ctx) {
+        // If node has a dropPingStart/time configured, render a dissipating ping
+        const start = this.node.dropPingStart;
+        const duration = this.node.dropPingDuration || 0;
+        if (!start || duration <= 0) return;
+
+        const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        const elapsed = now - start;
+        if (elapsed < 0 || elapsed > duration) return;
+
+    const linearT = Math.max(0, Math.min(1, elapsed / duration)); // 0 -> 1 over lifetime
+
+    // Apply ease-out curve for a smoother feel (cubic ease-out)
+    const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+    const t = easeOut(linearT);
+
+    // Ping expands and fades: radius from baseRadius to maxRadius, alpha from 0.6 -> 0
+    const baseRadius = Math.max(8, this.node.size / 2);
+    const maxRadius = baseRadius + 40; // how far the ping expands
+    const radius = baseRadius + (maxRadius - baseRadius) * t;
+    const alpha = 0.6 * (1 - linearT); // fade uses linear progress for consistent fade timing
+
+        // Determine base color from node.color (support hex #RRGGBB). Fallback to cornflower blue.
+        let r = 100, g = 149, b = 237;
+        try {
+            const c = (this.node.color || '').trim();
+            if (c.startsWith('#') && (c.length === 7 || c.length === 4)) {
+                if (c.length === 7) {
+                    r = parseInt(c.slice(1,3), 16);
+                    g = parseInt(c.slice(3,5), 16);
+                    b = parseInt(c.slice(5,7), 16);
+                } else {
+                    // short hex e.g. #abc -> #aabbcc
+                    r = parseInt(c[1] + c[1], 16);
+                    g = parseInt(c[2] + c[2], 16);
+                    b = parseInt(c[3] + c[3], 16);
+                }
+            } else if (c.startsWith('rgb')) {
+                // handle rgb/rgba strings like 'rgb(12,34,56)'
+                const nums = c.replace(/rgba?\(|\)/g,'').split(',').map(s => parseInt(s,10));
+                if (nums.length >= 3 && !isNaN(nums[0])) { r = nums[0]; g = nums[1]; b = nums[2]; }
+            }
+        } catch (e) {
+            // fallback to default
+        }
+
         ctx.save();
+        // Short filled flash at drop start for tactile feedback
+        const flashThreshold = 0.12; // first ~12% of duration
+        if (linearT <= flashThreshold) {
+            const flashProgress = linearT / flashThreshold; // 0 -> 1
+            const flashAlpha = 0.9 * (1 - flashProgress); // strong at start, quickly fade
+            ctx.beginPath();
+            ctx.arc(this.node.x, this.node.y, baseRadius * (1 + 0.25 * flashProgress), 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(${r},${g},${b},${flashAlpha.toFixed(3)})`;
+            ctx.fill();
+        }
         ctx.beginPath();
-        ctx.arc(this.node.x, this.node.y, Math.max(8, this.node.size / 2), 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(100, 149, 237, 0.6)';
-        ctx.lineWidth = 2;
+        ctx.arc(this.node.x, this.node.y, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${r},${g},${b},${alpha.toFixed(3)})`;
+        ctx.lineWidth = 2 * (1 - t) + 0.5; // slight tapering of line width
         ctx.stroke();
+
+        // Add a subtle outer glow fill with very low alpha
+        ctx.beginPath();
+        ctx.arc(this.node.x, this.node.y, radius * 0.9, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${r},${g},${b},${(0.08 * (1 - t)).toFixed(3)})`;
+        ctx.fill();
+
         ctx.restore();
     }
 

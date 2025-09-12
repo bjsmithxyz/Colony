@@ -1,14 +1,19 @@
 export const CONFIG = {
     MAP: {
-        WIDTH: 1024,
-        HEIGHT: 1024,
+        WIDTH: 512,
+        HEIGHT: 512,
         BACKGROUND_COLOR: '#1a1a1a'
     },
     NODE: {
         SIZE: 3,
         COLOR: '#4CAF50',
         MAX_NODES: 100,
-        SPAWN_THRESHOLD: 10
+        SPAWN_THRESHOLD: 10,
+        FOOD_PER_PIXEL: 1,           // how much food is required for one growth pixel
+        GROWTH_BRANCH_CHANCE: 0.75,  // chance that a growth step will create a branch
+        GROWTH_THICKNESS: 1          // thickness (in pixels) to add around growth paths
+        ,
+        GROWTH_RANDOM_DIR_CHANGE: 0.35 // chance each growth step to pick a less-targeted direction (more meandering)
     },
     INDIVIDUAL: {
         SIZE: 1,

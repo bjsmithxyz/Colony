@@ -14,6 +14,13 @@ export class ContextMenuManager {
             this.simulation.individuals = this.simulation.individuals.filter(ind => ind.parentNode !== node);
             
             // Remove the node
+            // If using shared pool bookkeeping, subtract remaining food from pool
+            try {
+                if (node.sharedPool) {
+                    node.sharedPool.totalFood = Math.max(0, (node.sharedPool.totalFood || 0) - (node.food || 0));
+                }
+            } catch (e) {}
+
             this.simulation.nodes.splice(index, 1);
             // Remove spawn bar UI if present
             try {
@@ -31,11 +38,16 @@ export class ContextMenuManager {
     }
     
     duplicateNode(node) {
+        if (!this.simulation.playerCanDropNodes) {
+            console.warn('Manual node creation disabled after initial drop');
+            return;
+        }
+
         if (this.simulation.nodes.length >= this.simulation.CONFIG.NODE.MAX_NODES) {
             console.warn('Maximum nodes reached');
             return;
         }
-        
+
         // Create new node at offset position
         const offsetX = 30;
         const offsetY = 30;
@@ -45,6 +57,9 @@ export class ContextMenuManager {
         if (newNode) {
             newNode.food = node.food;
             this.simulation.selectTarget(newNode);
+            // Mark that the player used their manual drop
+            this.simulation.playerCanDropNodes = false;
+            if (this.simulation._updateCanvasCursor) this.simulation._updateCanvasCursor();
         }
     }
     

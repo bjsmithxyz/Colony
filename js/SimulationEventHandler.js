@@ -31,7 +31,13 @@ export class SimulationEventHandler {
             if (clickedNode) {
                 this.simulation.selectTarget(clickedNode);
             } else {
-                this.simulation.addNode(Math.floor(coords.x), Math.floor(coords.y));
+                // Only allow player to drop a node if permitted (one-time drop)
+                if (this.simulation.playerCanDropNodes) {
+                    this.simulation.addNode(Math.floor(coords.x), Math.floor(coords.y));
+                    // after the first player-initiated drop, disable further manual drops
+                    this.simulation.playerCanDropNodes = false;
+                    if (this.simulation._updateCanvasCursor) this.simulation._updateCanvasCursor();
+                }
             }
         });
 

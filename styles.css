@@ -110,8 +110,17 @@ body {
     border-radius: 0; /* square corners */
     background: #0a0a1a;
     /* box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); */
-    cursor: crosshair;
+    cursor: crosshair; /* default if no class is present */
     transition: all 0.2s ease;
+}
+
+/* Cursor states applied via JS classes */
+#simulationCanvas.can-drop {
+    cursor: crosshair;
+}
+
+#simulationCanvas.cannot-drop {
+    cursor: pointer;
 }
 
 #simulationCanvas:hover {
