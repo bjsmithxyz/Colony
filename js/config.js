@@ -10,8 +10,8 @@ export const CONFIG = {
         MAX_NODES: 100,
         SPAWN_THRESHOLD: 10,
         FOOD_PER_PIXEL: 1,           // how much food is required for one growth pixel
-        GROWTH_BRANCH_CHANCE: 0.25,  // tuned: moderate branching for aesthetics
-        GROWTH_THICKNESS: 1,         // thickness (in pixels) to add around growth paths
+    GROWTH_BRANCH_CHANCE: 0.18,  // tuned lower for fewer branches (better perf)
+    GROWTH_THICKNESS: 2,         // slightly thicker dendrites for better visual weight
         
         GROWTH_RANDOM_DIR_CHANGE: 0.35 // chance each growth step to pick a less-targeted direction (more meandering)
     },
