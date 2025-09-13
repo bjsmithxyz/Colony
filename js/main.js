@@ -29,10 +29,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Hide loading screen after a short delay
         setTimeout(() => {
-            if (window.enhancedUI) {
+            if (window.enhancedUI && typeof window.enhancedUI.hideLoadingScreen === 'function') {
                 window.enhancedUI.hideLoadingScreen();
+            } else {
+                const loadingScreen = document.getElementById('loadingScreen');
+                if (loadingScreen) loadingScreen.classList.add('hidden');
             }
         }, 1500);
+
+        // Forcefully remove the loading element after a short grace period as a fallback
+        setTimeout(() => {
+            const loadingScreen = document.getElementById('loadingScreen');
+            if (loadingScreen) {
+                loadingScreen.style.display = 'none';
+            }
+        }, 2500);
+        console.log('Loading screen hide forced (main.js)');
         
     } catch (error) {
         console.error('Failed to initialize simulation:', error);

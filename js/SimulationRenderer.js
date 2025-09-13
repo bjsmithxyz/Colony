@@ -201,18 +201,18 @@ export class SimulationRenderer {
         if (!fpsIndicator) return;
 
         fpsIndicator.textContent = `${this.fps} FPS`;
-        
-        // Update color based on performance
-        if (this.fps < 30) {
-            fpsIndicator.style.color = '#ef4444';
-            fpsIndicator.style.borderColor = 'rgba(239, 68, 68, 0.3)';
-        } else if (this.fps < 50) {
-            fpsIndicator.style.color = '#f59e0b';
-            fpsIndicator.style.borderColor = 'rgba(245, 158, 11, 0.3)';
-        } else {
-            fpsIndicator.style.color = '#10b981';
-            fpsIndicator.style.borderColor = 'rgba(16, 185, 129, 0.3)';
-        }
+        // Map fps to a value between 0 (bad) and 1 (good) using 60 as target
+        const clamped = Math.max(0, Math.min(1, this.fps / 60));
+        // Interpolate between red (#ef4444) at 0 and white (#ffffff) at 1
+        const lerp = (a, b, t) => Math.round(a + (b - a) * t);
+        const hexToRgb = (hex) => hex.replace('#','').match(/.{2}/g).map(h => parseInt(h,16));
+        const rgbToHex = (r,g,b) => '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
+        const redRgb = hexToRgb('ef4444');
+        const whiteRgb = hexToRgb('ffffff');
+        const r = lerp(redRgb[0], whiteRgb[0], clamped);
+        const g = lerp(redRgb[1], whiteRgb[1], clamped);
+        const b = lerp(redRgb[2], whiteRgb[2], clamped);
+        fpsIndicator.style.color = rgbToHex(r,g,b);
     }
 
     updatePerformanceMetrics() {

@@ -130,15 +130,20 @@ export class SimulationEventHandler {
     }
 
     updatePausePlayButton(button) {
+        // Support both old styled buttons (with .btn-icon/.btn-label)
+        // and the new minimalist text-only buttons
         const icon = button.querySelector('.btn-icon');
         const label = button.querySelector('.btn-label');
-        
+
         if (this.simulation.isPaused) {
-            icon.textContent = '▶️';
+            if (icon) icon.textContent = '▶️';
             if (label) label.textContent = 'Play';
+            // fallback: set button text
+            if (!label && !icon) button.innerText = 'play';
         } else {
-            icon.textContent = '⏸️';
+            if (icon) icon.textContent = '⏸️';
             if (label) label.textContent = 'Pause';
+            if (!label && !icon) button.innerText = 'pause';
         }
     }
 

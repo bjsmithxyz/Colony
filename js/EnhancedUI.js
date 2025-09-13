@@ -195,8 +195,17 @@ class EnhancedUI {
     hideLoadingScreen() {
         const loadingScreen = document.getElementById('loadingScreen');
         if (loadingScreen) {
+            // stop progress animation if running
+            if (this._loadingInterval) {
+                clearInterval(this._loadingInterval);
+                this._loadingInterval = null;
+            }
             setTimeout(() => {
                 loadingScreen.classList.add('hidden');
+                // ensure it's removed from layout after transition
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                }, 600);
             }, 500);
         }
     }
@@ -207,13 +216,14 @@ class EnhancedUI {
     animateProgressBar() {
         const progressBar = document.getElementById('loadingProgressBar');
         if (!progressBar) return;
-        
         let progress = 0;
-        const interval = setInterval(() => {
+        // store interval id so it can be cleared when hiding the screen
+        this._loadingInterval = setInterval(() => {
             progress += Math.random() * 15 + 5;
             if (progress >= 100) {
                 progress = 100;
-                clearInterval(interval);
+                clearInterval(this._loadingInterval);
+                this._loadingInterval = null;
             }
             progressBar.style.width = `${progress}%`;
         }, 100);
