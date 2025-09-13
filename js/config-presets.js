@@ -6,7 +6,9 @@ export const PRESETS = {
             GROWTH_THICKNESS: 1,
             GROWTH_RANDOM_DIR_CHANGE: 0.08,
             BASE_GROWTH_CHANCE: 0.003
-        },
+  Session ended — feel free to re-open when you want me to continue.
+  
+  GPT-5 mini • 0x      },
         GROWTH_ACTIONS_PER_FRAME: 2,
         GROWTH_STEP_PIXELS: 1,
         GROWTH_CONTINUOUS: true
