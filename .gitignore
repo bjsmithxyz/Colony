@@ -1,0 +1,15 @@
+node_modules/
+package-lock.json
+npm-debug.log
+build/
+.DS_Store
+dist/
+/.cache
+logs/
+*.log
+/.idea
+/.vscode
+coverage/
+env/
+venv/
+__pycache__/

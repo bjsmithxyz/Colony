@@ -96,6 +96,13 @@ export class Simulation {
         this.canvas.width = CONFIG.MAP.WIDTH;
         this.canvas.height = CONFIG.MAP.HEIGHT;
         this.ctx.imageSmoothingEnabled = false;
+        // Ensure any canvas text uses the bundled Ubuntu font by default
+        try {
+            this.ctx.textBaseline = 'top';
+            this.ctx.font = '14px Ubuntu';
+        } catch (e) {
+            // some contexts may not support text settings in certain environments
+        }
     }
 
     initializeEntities() {
