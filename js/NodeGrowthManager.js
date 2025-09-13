@@ -20,49 +20,81 @@ export class NodeGrowthManager {
         this.totalGrowth = 0;
         // Queue for deferred growth actions when spreading across frames
         this._growthQueue = [];
+        // Track last food amount we've processed into growth to support continuous draining
+        this._lastProcessedFood = (this.node && typeof this.node.lastFoodAmount === 'number') ? this.node.lastFoodAmount : 0;
+        // Number of pixels reserved by queued growth actions (not yet consumed from node.food)
+        this._reservedPixels = 0;
+    }
+
+    _dbg() {
+        return !!(this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG);
     }
 
     /**
      * Trigger growth based on food storage
      */
     processGrowth(amount, sourceDirection = null, depositLocation = null) {
-        if (amount > 0) {
-            const cfg = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
-            const debug = this.node.simulation ? this.node.simulation.CONFIG.DEBUG : null;
-            const perPixel = (cfg && cfg.FOOD_PER_PIXEL) ? cfg.FOOD_PER_PIXEL : 1;
-            const oldPixels = Math.floor(this.node.lastFoodAmount / perPixel);
-            const newPixels = Math.floor(this.node.food / perPixel);
-            let delta = Math.max(0, newPixels - oldPixels);
-            // Lightweight debug: always log computed delta to help detect enqueue problems
-            try {
-                if (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) {
-                    console.log('processGrowth computed', { nodeX: this.node.x, nodeY: this.node.y, amount, oldPixels, newPixels, delta });
-                } else {
-                    // also surface to console.debug so it's available when devtools show verbose logs
-                    console.debug && console.debug('processGrowth', { x: this.node.x, y: this.node.y, amount, oldPixels, newPixels, delta });
-                }
-            } catch (e) {}
-            // apply safety cap if configured
-            if (debug && typeof debug.MAX_GROWTH_PER_TICK === 'number') {
-                delta = Math.min(delta, debug.MAX_GROWTH_PER_TICK);
+        if (amount <= 0) return;
+
+        const cfgNode = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
+        const perPixel = (cfgNode && cfgNode.FOOD_PER_PIXEL) ? cfgNode.FOOD_PER_PIXEL : 1;
+        const oldPixels = Math.floor(this.node.lastFoodAmount / perPixel);
+        const newPixels = Math.floor(this.node.food / perPixel);
+        let delta = Math.max(0, newPixels - oldPixels);
+
+        // Debug log
+        try {
+            if (this._dbg()) console.log('processGrowth computed', { nodeX: this.node.x, nodeY: this.node.y, amount, oldPixels, newPixels, delta });
+            else console.debug && console.debug('processGrowth', { x: this.node.x, y: this.node.y, amount, oldPixels, newPixels, delta });
+        } catch (e) {}
+
+        // Cap if top-level configured
+        const topCfg = this.node.simulation ? this.node.simulation.CONFIG : null;
+        if (topCfg && typeof topCfg.MAX_GROWTH_PER_TICK === 'number') delta = Math.min(delta, topCfg.MAX_GROWTH_PER_TICK);
+
+        if (delta <= 0) return;
+
+        // Enqueue growth actions unless continuous draining will handle them (except for deposit-directed growth)
+        const continuous = topCfg && topCfg.GROWTH_CONTINUOUS;
+
+        for (let i = 0; i < delta; i++) {
+            if (depositLocation) {
+                this._growthQueue.push({ type: 'toward', point: depositLocation });
+                if (this._dbg()) console.log('Enqueued toward growth', this.node.x, this.node.y, depositLocation);
+                this._reservedPixels++;
+                this._lastProcessedFood = this.node.food;
+                continue;
             }
-            if (delta > 0) {
-                // Enqueue growth actions and let tick() apply them gradually
-                for (let i = 0; i < delta; i++) {
-                    if (depositLocation) {
-                        this._growthQueue.push({ type: 'toward', point: depositLocation });
-                        if (this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) console.log('Enqueued toward growth', this.node.x, this.node.y, depositLocation);
-                    } else if (sourceDirection) {
-                        this._growthQueue.push({ type: 'direction', direction: sourceDirection });
-                        if (this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) console.log('Enqueued dir growth', this.node.x, this.node.y, sourceDirection);
-                    } else {
-                        const dirs = Object.keys(this.growthDirections);
-                        const dir = dirs[Math.floor(Math.random() * dirs.length)];
-                        this._growthQueue.push({ type: 'direction', direction: dir });
-                        if (this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) console.log('Enqueued rand growth', this.node.x, this.node.y, dir);
-                    }
+
+            if (sourceDirection) {
+                if (!continuous) {
+                    this._growthQueue.push({ type: 'direction', direction: sourceDirection });
+                    this._reservedPixels++;
+                    if (this._dbg()) console.log('Enqueued dir growth', this.node.x, this.node.y, sourceDirection);
                 }
+                this._lastProcessedFood = this.node.food;
+                continue;
             }
+
+            // Generic/random growth: only enqueue if not continuous
+            if (continuous) {
+                this._lastProcessedFood = this.node.food;
+                continue;
+            }
+
+            // Weighted random: prefer cardinals
+            const weights = { north: 2, south: 2, east: 2, west: 2, northeast: 1, northwest: 1, southeast: 1, southwest: 1 };
+            const dirs = Object.keys(this.growthDirections);
+            const weighted = [];
+            for (const d of dirs) {
+                const w = weights[d] || 1;
+                for (let k = 0; k < w; k++) weighted.push(d);
+            }
+            const dir = weighted[Math.floor(Math.random() * weighted.length)];
+            this._growthQueue.push({ type: 'direction', direction: dir });
+            this._reservedPixels++;
+            if (this._dbg()) console.log('Enqueued rand growth', this.node.x, this.node.y, dir);
+            this._lastProcessedFood = this.node.food;
         }
     }
 
@@ -74,23 +106,112 @@ export class NodeGrowthManager {
         const cfg = this.node.simulation ? this.node.simulation.CONFIG : null;
         const actionsPerFrame = (cfg && typeof cfg.GROWTH_ACTIONS_PER_FRAME === 'number') ? cfg.GROWTH_ACTIONS_PER_FRAME : 2;
         let processed = 0;
+        // If continuous growth is enabled, use the per-frame action budget to convert food directly into growth
+        try {
+            if (cfg && cfg.GROWTH_CONTINUOUS) {
+                const nodeCfg = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
+                const perPixel = (nodeCfg && nodeCfg.FOOD_PER_PIXEL) ? nodeCfg.FOOD_PER_PIXEL : 1;
+                const maxPerAction = (cfg && typeof cfg.GROWTH_STEP_PIXELS === 'number') ? cfg.GROWTH_STEP_PIXELS : 1;
+                let availableActions = actionsPerFrame;
+                // First, consume food-driven growth using this frame's budget
+                // Respect spawn threshold so continuous growth doesn't prevent spawning
+                const spawnThresh = (nodeCfg && typeof nodeCfg.SPAWN_THRESHOLD === 'number') ? nodeCfg.SPAWN_THRESHOLD : 0;
+                while (availableActions > 0 && this.node.food >= perPixel) {
+                    // compute max consumable food this step without dropping below spawn threshold
+                    const maxConsumable = Math.max(0, this.node.food - spawnThresh);
+                    if (maxConsumable < perPixel) break; // leave enough for spawn
+                    const pixelsToGrow = 1 + Math.floor(Math.random() * maxPerAction);
+                    // clamp pixels by available consumable pixels
+                    const consumablePixels = Math.min(pixelsToGrow, Math.floor(maxConsumable / perPixel));
+                    if (consumablePixels <= 0) break;
+                    // choose a growth method: prefer directed toward deposit if available in queue else random direction
+                    const dirs = Object.keys(this.growthDirections);
+                    const dir = dirs[Math.floor(Math.random() * dirs.length)];
+                    this.growInDirection(dir, consumablePixels);
+                    // consume food for the pixels we just created
+                    const consumed = consumablePixels * perPixel;
+                    this.node.food = Math.max(0, this.node.food - consumed);
+                    this._lastProcessedFood = this.node.food;
+                    availableActions--;
+                    processed++;
+                }
+                // Remaining action budget will be used to process queued growth below
+            }
+        } catch (e) {}
+        // Baseline slow growth: small chance per tick to extend a tentacle even without food
+        try {
+            const nodeCfg = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
+            const baseChance = (nodeCfg && typeof nodeCfg.BASE_GROWTH_CHANCE === 'number') ? nodeCfg.BASE_GROWTH_CHANCE : 0;
+            if (Math.random() < baseChance) {
+                // pick a random direction and grow a single pixel
+                const dirs = Object.keys(this.growthDirections);
+                const dir = dirs[Math.floor(Math.random() * dirs.length)];
+                this.growInDirection(dir, 1);
+            }
+        } catch (e) {}
         // Debug: report queue size when non-empty
         try {
             if (this._growthQueue.length > 0) {
-                if (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) console.log('tick starting with queue', this._growthQueue.length, 'actionsPerFrame', actionsPerFrame, 'node', this.node.x, this.node.y);
+                if (this._dbg()) console.log('tick starting with queue', this._growthQueue.length, 'actionsPerFrame', actionsPerFrame, 'node', this.node.x, this.node.y);
                 else console.debug && console.debug('tick queue', this._growthQueue.length, 'apf', actionsPerFrame, 'node', this.node.x, this.node.y);
             }
         } catch (e) {}
         while (processed < actionsPerFrame && this._growthQueue.length > 0) {
             const action = this._growthQueue.shift();
-            if (this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) console.log('Processing growth action', action, 'for node', this.node.x, this.node.y);
+            // consuming one reserved pixel for this queued action
+            if (this._reservedPixels > 0) this._reservedPixels = Math.max(0, this._reservedPixels - 1);
+            if (this._dbg()) console.log('Processing growth action', action, 'for node', this.node.x, this.node.y);
+            // Determine pixels per action
+            const maxPerAction = (cfg && typeof cfg.GROWTH_STEP_PIXELS === 'number') ? cfg.GROWTH_STEP_PIXELS : 1;
+            const pixelsToGrow = 1 + Math.floor(Math.random() * maxPerAction);
             if (action.type === 'toward') {
-                this.growTowardWorldPoint(action.point);
+                for (let p = 0; p < pixelsToGrow; p++) this.growTowardWorldPoint(action.point);
             } else if (action.type === 'direction') {
-                this.growInDirection(action.direction, 1);
+                this.growInDirection(action.direction, pixelsToGrow);
             }
             processed++;
         }
+
+        // If continuous growth is enabled, also convert stored food into growth here
+        try {
+            if (cfg && cfg.GROWTH_CONTINUOUS) {
+                const nodeCfg = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
+                const perPixel = (nodeCfg && nodeCfg.FOOD_PER_PIXEL) ? nodeCfg.FOOD_PER_PIXEL : 1;
+                const maxPerAction = (cfg && typeof cfg.GROWTH_STEP_PIXELS === 'number') ? cfg.GROWTH_STEP_PIXELS : 1;
+                // compute how many whole pixels are represented by current food and what we've already processed
+                const availablePixels = Math.floor(this.node.food / perPixel);
+                const processedPixels = Math.floor((this._lastProcessedFood || 0) / perPixel);
+                let deltaPixels = Math.max(0, availablePixels - processedPixels);
+                if (deltaPixels > 0) {
+                    // cap how many pixels we convert this tick to avoid long stalls
+                    const cap = Math.max(1, actionsPerFrame * maxPerAction - this._reservedPixels);
+                    let toConvert = Math.min(deltaPixels, cap);
+                    const weights = { north: 2, south: 2, east: 2, west: 2, northeast: 1, northwest: 1, southeast: 1, southwest: 1 };
+                    const dirs = Object.keys(this.growthDirections);
+                    const weighted = [];
+                    for (const d of dirs) {
+                        const w = weights[d] || 1;
+                        for (let k = 0; k < w; k++) weighted.push(d);
+                    }
+                    // Respect spawn threshold when converting available food into growth
+                    const spawnThresh2 = (nodeCfg && typeof nodeCfg.SPAWN_THRESHOLD === 'number') ? nodeCfg.SPAWN_THRESHOLD : 0;
+                    while (toConvert > 0) {
+                        // compute how many pixels we may consume without going below threshold
+                        const maxConsumable = Math.max(0, this.node.food - spawnThresh2);
+                        if (maxConsumable < perPixel) break;
+                        const step = Math.min(toConvert, Math.min(1 + Math.floor(Math.random() * maxPerAction), Math.floor(maxConsumable / perPixel)));
+                        if (step <= 0) break;
+                        const dir = weighted[Math.floor(Math.random() * weighted.length)];
+                        this.growInDirection(dir, step);
+                        const consumed = step * perPixel;
+                        this.node.food = Math.max(0, this.node.food - consumed);
+                        toConvert -= step;
+                        // reflect progress so subsequent ticks don't duplicate work
+                        this._lastProcessedFood = this.node.food;
+                    }
+                }
+            }
+        } catch (e) {}
     }
 
     /**
@@ -115,6 +236,21 @@ export class NodeGrowthManager {
                     growthData.supportLevel = requiredSupport;
                 }
             }
+
+            // Small chance to deviate/jitter the growth direction to create meandering
+            try {
+                const rnd = (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.NODE && typeof this.node.simulation.CONFIG.NODE.GROWTH_RANDOM_DIR_CHANGE === 'number') ? this.node.simulation.CONFIG.NODE.GROWTH_RANDOM_DIR_CHANGE : 0.2;
+                if (Math.random() < rnd) {
+                    // pick a nearby direction (rotate left/right or diagonals)
+                    const dirs = Object.keys(this.growthDirections);
+                    const alternatives = dirs.filter(d => d !== direction);
+                    const pick = alternatives[Math.floor(Math.random() * alternatives.length)];
+                    // add a small branch immediately
+                    this.addPixelInDirection(pick);
+                    this.growthDirections[pick].length++;
+                    this.totalGrowth++;
+                }
+            } catch (e) {}
         }
     }
 
@@ -135,34 +271,22 @@ export class NodeGrowthManager {
 
         const vector = directionVectors[direction];
         if (!vector) return;
+        // Prefer starting from the node's edge/frontier pixels for outward growth
+        let start = this._chooseEdgePixelTowards(vector.dx, vector.dy) || { dx: 0, dy: 0 };
 
-        // Find the furthest pixel in this direction and add a new one
-        const existingPixels = this.node.pixels.filter(pixel => {
-            const distance = pixel.dx * vector.dx + pixel.dy * vector.dy;
-            return distance > 0;
-        });
-
-        let newPixel;
-        if (existingPixels.length === 0) {
-            // First pixel in this direction
-            newPixel = { dx: vector.dx, dy: vector.dy };
-        } else {
-            // Find the furthest pixel
-            const furthest = existingPixels.reduce((max, pixel) => {
-                const distance = pixel.dx * vector.dx + pixel.dy * vector.dy;
-                const maxDistance = max.dx * vector.dx + max.dy * vector.dy;
-                return distance > maxDistance ? pixel : max;
-            });
-
-            newPixel = {
-                dx: furthest.dx + vector.dx,
-                dy: furthest.dy + vector.dy
-            };
+        // Step outward from the chosen start until an empty spot is found
+        let nx = start.dx + vector.dx;
+        let ny = start.dy + vector.dy;
+        let steps = 0;
+        const maxOutwardSteps = 64; // safety cap
+        while (this.node.hasPixel && this.node.hasPixel(nx, ny) && steps < maxOutwardSteps) {
+            nx += vector.dx;
+            ny += vector.dy;
+            steps++;
         }
 
-        // Check if pixel already exists
-        // use node.addPixel for fast set handling
-        this.node.addPixel(newPixel.dx, newPixel.dy);
+        // Add the first missing pixel along this ray
+        this._addPixelIfMissing(nx, ny);
     }
 
     /**
@@ -190,8 +314,20 @@ export class NodeGrowthManager {
             const dx = relX - sx;
             const dy = relY - sy;
             if (dx === 0 && dy === 0) break;
-            const stepX = dx === 0 ? 0 : (dx > 0 ? 1 : -1);
-            const stepY = dy === 0 ? 0 : (dy > 0 ? 1 : -1);
+            // Prefer cardinal steps when one axis dominates to avoid strict diagonal growth
+            const adx = Math.abs(dx);
+            const ady = Math.abs(dy);
+            let stepX = 0, stepY = 0;
+            if (adx > ady * 1.2) {
+                stepX = dx > 0 ? 1 : -1;
+                stepY = 0;
+            } else if (ady > adx * 1.2) {
+                stepY = dy > 0 ? 1 : -1;
+                stepX = 0;
+            } else {
+                stepX = dx === 0 ? 0 : (dx > 0 ? 1 : -1);
+                stepY = dy === 0 ? 0 : (dy > 0 ? 1 : -1);
+            }
             const nx = sx + stepX, ny = sy + stepY;
             // if pixel already exists, advance start to that pixel and continue
             if (this.node.hasPixel(nx, ny)) {
@@ -203,8 +339,7 @@ export class NodeGrowthManager {
 
         // Debug: log computed path and endpoints when enabled (explicit numeric values)
         try {
-            const dbg = this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG;
-            if (dbg) {
+            if (this._dbg()) {
                 console.log('growTowardWorldPoint', 'node', this.node.x, this.node.y, 'start', startPixel.dx, startPixel.dy, 'target', relX, relY, 'pathLen', path.length, 'path', path);
             } else {
                 console.debug && console.debug('growTowardWorldPoint', 'start', startPixel.dx, startPixel.dy, 'target', relX, relY, 'pathLen', path.length);
@@ -215,22 +350,64 @@ export class NodeGrowthManager {
         // attempt a small outward step from the chosen start pixel so growth remains visible.
         if (path.length === 0) {
             try {
-                const sxFallback = startPixel.dx;
-                const syFallback = startPixel.dy;
-                const stepX = sxFallback === 0 ? (relX > sxFallback ? 1 : -1) : (sxFallback > 0 ? 1 : -1);
-                const stepY = syFallback === 0 ? (relY > syFallback ? 1 : -1) : (syFallback > 0 ? 1 : -1);
-                const fx = sxFallback + stepX;
-                const fy = syFallback + stepY;
-                if (!(this.node.hasPixel && this.node.hasPixel(fx, fy))) {
-                    if (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) {
-                        console.log('growTowardWorldPoint fallback add', fx, fy, 'from start', sxFallback, syFallback, 'target', relX, relY);
+                // Try multiple outward extension attempts to avoid stalls when direct path is blocked
+                const edgeCandidates = [];
+                const edgeSet = this.node.edgePixels;
+                if (edgeSet && edgeSet.size > 0) {
+                    for (const k of edgeSet) {
+                        const [ex, ey] = k.split(',').map(Number);
+                        edgeCandidates.push({ dx: ex, dy: ey });
                     }
-                    this._addPixelIfMissing(fx, fy);
+                } else if (this.node.pixels && this.node.pixels.length > 0) {
+                    // fallback to any pixel if edge set empty
+                    for (const p of this.node.pixels) edgeCandidates.push(p);
                 } else {
-                    if (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) {
-                        console.log('growTowardWorldPoint fallback found existing pixel', fx, fy);
+                    edgeCandidates.push({ dx: 0, dy: 0 });
+                }
+
+                // Shuffle edgeCandidates to randomize attempts
+                for (let a = edgeCandidates.length - 1; a > 0; a--) {
+                    const j = Math.floor(Math.random() * (a + 1));
+                    const tmp = edgeCandidates[a]; edgeCandidates[a] = edgeCandidates[j]; edgeCandidates[j] = tmp;
+                }
+
+                const tryOffsets = [
+                    { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 },
+                    { x: 1, y: 1 }, { x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }
+                ];
+
+                let added = false;
+                const maxAttempts = Math.min(6, edgeCandidates.length);
+                for (let attempt = 0; attempt < maxAttempts && !added; attempt++) {
+                    const candidate = edgeCandidates[attempt];
+                    // Compute vector away from center for outward growth if possible
+                    const vx = candidate.dx;
+                    const vy = candidate.dy;
+                    let norm = { x: 0, y: 0 };
+                    if (vx === 0 && vy === 0) {
+                        // center pixel: pick a random neighbor
+                        norm = tryOffsets[Math.floor(Math.random() * tryOffsets.length)];
+                    } else {
+                        norm.x = vx === 0 ? 0 : (vx > 0 ? 1 : -1);
+                        norm.y = vy === 0 ? 0 : (vy > 0 ? 1 : -1);
+                    }
+
+                    // Try a few offsets around the normalized direction to find an empty spot
+                    for (let off = 0; off < tryOffsets.length && !added; off++) {
+                        // Mix base norm with offset to increase variety
+                        const offIdx = Math.floor(Math.random() * tryOffsets.length);
+                        const o = tryOffsets[offIdx];
+                        const tx = candidate.dx + norm.x + o.x;
+                        const ty = candidate.dy + norm.y + o.y;
+                        if (!(this.node.hasPixel && this.node.hasPixel(tx, ty))) {
+                            if (this._dbg()) console.log('growTowardWorldPoint fallback add', tx, ty, 'from candidate', candidate, 'target', relX, relY);
+                            this._addPixelIfMissing(tx, ty);
+                            added = true;
+                            break;
+                        }
                     }
                 }
+                if (!added && this._dbg()) console.log('growTowardWorldPoint fallback: no empty candidate found');
             } catch (e) {}
         }
 
@@ -238,7 +415,6 @@ export class NodeGrowthManager {
         const thickness = (this.node.simulation && this.node.simulation.CONFIG.NODE.GROWTH_THICKNESS) || 1;
         for (const newPixel of path) {
             this._addPixelIfMissing(newPixel.dx, newPixel.dy);
-        const thickness = (this.node.simulation && this.node.simulation.CONFIG.NODE.GROWTH_THICKNESS) || 1;
             for (let t = 1; t <= thickness; t++) {
                 this._addPixelIfMissing(newPixel.dx + t, newPixel.dy);
                 this._addPixelIfMissing(newPixel.dx - t, newPixel.dy);
@@ -258,10 +434,10 @@ export class NodeGrowthManager {
                     { x: newPixel.dx + 1, y: newPixel.dy - 1 },{ x: newPixel.dx - 1, y: newPixel.dy + 1 }
                 ];
                 const branchCandidates = neighbors.filter(nb => !this.node.hasPixel(nb.x, nb.y));
-                if (branchCandidates.length > 0) {
-                    const b = branchCandidates[Math.floor(Math.random() * branchCandidates.length)];
-                    this._addPixelIfMissing(b.x, b.y);
-                }
+                    if (branchCandidates.length > 0) {
+                        const b = branchCandidates[Math.floor(Math.random() * branchCandidates.length)];
+                        this._addPixelIfMissing(b.x, b.y);
+                    }
             }
 
         // Extra fork behavior: occasionally grow an additional step from a nearby existing pixel
@@ -332,9 +508,7 @@ export class NodeGrowthManager {
 
     _addPixelIfMissing(dx, dy) {
         if (this.node && typeof this.node.addPixel === 'function') {
-            try {
-                if (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) console.log('Attempt addPixel', this.node.x, this.node.y, dx, dy);
-            } catch (e) {}
+            try { if (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) console.log('Attempt addPixel', this.node.x, this.node.y, dx, dy); } catch (e) {}
             return this.node.addPixel(dx, dy);
         }
         const exists = this.node.pixels.some(p => p.dx === dx && p.dy === dy);

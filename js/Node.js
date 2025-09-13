@@ -68,12 +68,12 @@ export class Node {
         const neigh = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
         let isEdge = false;
         for (const [ox, oy] of neigh) {
-            const nk = `${dx+ox},${dy+oy}`;
-            if (!this.pixelSet.has(nk)) {
+            const neighborKey = `${dx+ox},${dy+oy}`;
+            if (!this.pixelSet.has(neighborKey)) {
                 isEdge = true;
-                // mark neighbor as edge candidate (if neighbor is existing pixel, ensure it's marked)
-                const neighborKey = `${dx+ox},${dy+oy}`;
-                if (this.pixelSet.has(neighborKey)) this.edgePixels.add(neighborKey);
+            } else {
+                // Neighbor exists: ensure it's marked as an edge candidate
+                this.edgePixels.add(neighborKey);
             }
         }
         if (isEdge) this.edgePixels.add(key);
@@ -125,10 +125,17 @@ export class Node {
      */
     spawn() {
     // Check cooldown and food cost (10 food)
-    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    const now = Date.now();
     if (!this.simulation) return false;
-    if (now - this.lastSpawnTime < this.spawnCooldown) return false;
-    if (this.food < 10) return false;
+    if (CONFIG.DEBUG_SPAWN) console.log('[spawn] attempt', { node: [this.x, this.y], now, lastSpawnTime: this.lastSpawnTime, food: this.food });
+    if (now - this.lastSpawnTime < this.spawnCooldown) {
+        if (CONFIG.DEBUG_SPAWN) console.log('[spawn] blocked by cooldown', { remaining: this.spawnCooldown - (now - this.lastSpawnTime) });
+        return false;
+    }
+    if (this.food < 10) {
+        if (CONFIG.DEBUG_SPAWN) console.log('[spawn] blocked by insufficient food', { food: this.food });
+        return false;
+    }
             const individual = this.simulation.individualPool.acquire(this);
             // If simulation has marked next spawn as dropper, configure this individual
             if (this.simulation && this.simulation._markNextSpawnAsDropper) {
@@ -152,6 +159,7 @@ export class Node {
 
                 // Record spawn time for cooldown
                 this.lastSpawnTime = now;
+                if (CONFIG.DEBUG_SPAWN) console.log('[spawn] succeeded', { spawnedId: individual.id, foodLeft: this.food });
 
                 this.simulation.individuals.push(individual);
                 this.individuals.push(individual);
@@ -159,6 +167,34 @@ export class Node {
                 // pulse animation removed to prevent spawn flash
 
                 return true;
+    }
+
+    /**
+     * Try to spawn multiple individuals immediately without waiting for cooldown.
+     * Used for testing or when `CONFIG.ALLOW_IMMEDIATE_MULTI_SPAWN` is true.
+     */
+    spawnImmediate() {
+        if (!this.simulation) return 0;
+        let spawnedCount = 0;
+    while (this.food >= 10) {
+            const ind = this.simulation.individualPool.acquire(this);
+            if (this.simulation && this.simulation._markNextSpawnAsDropper) {
+                ind.willDropNodeOnDeath = true;
+                ind.ignoreFood = true;
+                this.simulation._markNextSpawnAsDropper = false;
+            }
+            if (this.specializationEnabled) ind.assignSpecialization();
+            this.food -= 10;
+            if (this.sharedPool) this.sharedPool.totalFood = Math.max(0, (this.sharedPool.totalFood || 0) - 10);
+            this.lastSpawnTime = Date.now();
+            this.simulation.individuals.push(ind);
+            this.individuals.push(ind);
+            this.simulation.totalIndividualsSpawned++;
+            if (CONFIG.DEBUG_SPAWN) console.log('[spawnImmediate] spawned', ind.id, 'foodLeft', this.food);
+            spawnedCount++;
+            if (this.simulation.updateStats) this.simulation.updateStats();
+        }
+        return spawnedCount;
     }
     
     /**
@@ -175,7 +211,7 @@ export class Node {
     scheduleSpawnAttempt() {
         if (!this.simulation) return;
         try {
-            const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+            const now = Date.now();
             const elapsed = now - this.lastSpawnTime;
             const remaining = Math.max(0, this.spawnCooldown - elapsed);
             if (this._spawnTimer) clearTimeout(this._spawnTimer);
@@ -221,26 +257,35 @@ export class Node {
 
         // Delegate growth processing to growth manager
         this.growthManager.processGrowth(amount, sourceDirection, depositLocation);
-        
-        this.lastFoodAmount = this.food;
-        
+
         // Automatically spawn individuals when node accumulates enough food (10 per spawn).
         // Spawn as many as the available food allows to keep behavior deterministic.
         if (this.simulation) {
-            // Try to spawn as many as possible now, respecting cooldown
-            while (this.food >= 10) {
-                const spawned = this.spawn();
-                // If spawn fails due to cooldown, schedule remaining spawns and exit loop
-                if (!spawned) {
-                    this.scheduleSpawnAttempt();
-                    break;
-                }
+            // If config allows, spawn multiple individuals immediately from a large deposit
+            // This is disabled by default; `DEBUG_FORCE_MULTI_SPAWN` can enable it for debugging
+            const immediateAllowed = !!(this.simulation.CONFIG && (this.simulation.CONFIG.ALLOW_IMMEDIATE_MULTI_SPAWN || this.simulation.CONFIG.DEBUG_FORCE_MULTI_SPAWN));
+            if (immediateAllowed) {
+                const spawned = this.spawnImmediate();
+                if (spawned > 0 && this.simulation.updateStats) this.simulation.updateStats();
+            } else {
+                // Try to spawn as many as possible now, respecting cooldown
+                while (this.food >= 10) {
+                    const spawned = this.spawn();
+                    // If spawn fails due to cooldown, schedule remaining spawns and exit loop
+                    if (!spawned) {
+                        this.scheduleSpawnAttempt();
+                        break;
+                    }
 
-                // Update stats after successful spawn
-                if (this.simulation.updateStats) this.simulation.updateStats();
-                // Continue loop to attempt further immediate spawns (until food < 10 or cooldown applies)
+                    // Update stats after successful spawn
+                    if (this.simulation.updateStats) this.simulation.updateStats();
+                    // Continue loop to attempt further immediate spawns (until food < 10 or cooldown applies)
+                }
             }
         }
+
+        // Record the last observed food amount after any consumption (spawns)
+        this.lastFoodAmount = this.food;
     }
 
     /**
