@@ -1,3 +1,47 @@
+# Colony
+
+A lightweight browser-based simulation that models simple agents (individuals), nodes, and food sources on an interactive canvas. The project uses a minimalist, pixel-inspired UI.
+
+## Quick Start
+
+- Serve locally with Python's simple server:
+
+```bash
+python3 -m http.server 8000 --bind 127.0.0.1
+# then open http://127.0.0.1:8000 in your browser
+```
+
+- Alternatively, if provided, run the included server script:
+
+```bash
+python3 server.py
+```
+
+## Development
+
+- Edit files under the project root and in the `js/` folder. Styles are in `styles.css`.
+- After making changes, refresh the browser to see updates.
+
+## Project Structure (key files)
+
+- `index.html` — application entry and UI layout
+- `styles.css` — global styles, pixel theme, bundled font `@font-face` rules
+- `js/main.js` — app bootstrap and initialization
+- `js/Simulation.js` — simulation core logic
+- `js/SimulationRenderer.js` — rendering and FPS handling
+- `js/SimulationEventHandler.js` — input and UI bindings
+- `js/bgPixels.js` — pixel-splatter background renderer
+- `assets/fonts/` — bundled Ubuntu WOFF2 files (preloaded in `index.html`)
+
+## UI Notes
+
+- Fonts: Ubuntu is bundled locally to avoid external dependencies and is preloaded for faster first paint.
+- Loading screen: uses the project pixel aesthetic and a pixel spinner.
+- Controls: simplified text-only `pause` and `reset` buttons sit in the top-left overlay.
+
+## License
+
+This project is licensed under the MIT License — see `LICENSE` for details.
 **Colony**
 
 **Overview:**
@@ -22,16 +66,6 @@
 - `js/bgPixels.js`: background pixel-splatter generator (renders behind the canvas).
 - `assets/fonts/`: bundled Ubuntu WOFF2 font files used by the UI.
 
-**UI Notes:**
-- Fonts: Ubuntu is bundled locally in `assets/fonts/` (woff2) and preloaded in `index.html`.
-- Loading screen: uses the project-wide pixel theme and a pixel spinner.
-- Controls: pause/reset buttons are simple text links positioned in the canvas overlay.
-
-**Contributing:**
-- Make a branch, commit changes and open a PR. Keep UI and performance changes small and focused.
-
 **License & Credits:**
 - No license file included; add `LICENSE` if you want a specific license.
 - Fonts used: Ubuntu (bundled WOFF2) — follow upstream licensing for redistribution.
-
-If you want, I can expand this README with architecture diagrams, development scripts, or a CONTRIBUTING guide.
