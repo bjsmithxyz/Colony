@@ -29,6 +29,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Create and start simulation
         const simulation = new Simulation(canvas);
+
+        // Attach runtime config UI (allows live edits)
+        try {
+            const { ConfigUI } = await import('./ConfigUI.js');
+            // ConfigUI is a named export for compatibility
+            // some environments may export default — handle both
+            const UIClass = ConfigUI && typeof ConfigUI === 'function' ? ConfigUI : (ConfigUI && ConfigUI.default) || null;
+            if (UIClass) {
+                // instantiate and attach to window for debugging
+                window.configUI = new UIClass(simulation);
+            }
+        } catch (e) {
+            // Fail silently; this UI is optional
+            try { logger.debug('ConfigUI not available', e); } catch (ee) {}
+        }
         
         // Store global reference for debugging
         window.simulation = simulation;

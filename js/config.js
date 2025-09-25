@@ -1,4 +1,39 @@
-import PRESETS from './config-presets.js';
+// Presets inlined here (previously in config-presets.js)
+const PRESETS = {
+    sparse: {
+        NODE: {
+            GROWTH_BRANCH_CHANCE: 0.06,
+            GROWTH_THICKNESS: 1,
+            GROWTH_RANDOM_DIR_CHANGE: 0.08,
+            BASE_GROWTH_CHANCE: 0.003
+        },
+        GROWTH_ACTIONS_PER_FRAME: 2,
+        GROWTH_STEP_PIXELS: 1,
+        GROWTH_CONTINUOUS: true
+    },
+    bushy: {
+        NODE: {
+            GROWTH_BRANCH_CHANCE: 0.62,
+            GROWTH_THICKNESS: 2,
+            GROWTH_RANDOM_DIR_CHANGE: 0.6,
+            BASE_GROWTH_CHANCE: 0.04
+        },
+        GROWTH_ACTIONS_PER_FRAME: 5,
+        GROWTH_STEP_PIXELS: 3,
+        GROWTH_CONTINUOUS: true
+    },
+    tendrils: {
+        NODE: {
+            GROWTH_BRANCH_CHANCE: 0.22,
+            GROWTH_THICKNESS: 1,
+            GROWTH_RANDOM_DIR_CHANGE: 0.32,
+            BASE_GROWTH_CHANCE: 0.02
+        },
+        GROWTH_ACTIONS_PER_FRAME: 3,
+        GROWTH_STEP_PIXELS: 2,
+        GROWTH_CONTINUOUS: true
+    }
+};
 
 export const CONFIG = {
     MAP: {
@@ -77,4 +112,15 @@ for (const key of ['GROWTH_ACTIONS_PER_FRAME', 'GROWTH_STEP_PIXELS', 'GROWTH_CON
     if (defaultPreset[key] !== undefined) CONFIG[key] = defaultPreset[key];
 }
 
+// Freeze presets to discourage runtime mutation
+function deepFreeze(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    Object.keys(obj).forEach((k) => {
+        if (obj[k] && typeof obj[k] === 'object') deepFreeze(obj[k]);
+    });
+    return Object.freeze(obj);
+}
+deepFreeze(PRESETS);
+
+export { PRESETS };
 export default CONFIG;

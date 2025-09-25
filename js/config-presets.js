@@ -1,15 +1,17 @@
 /**
  * @typedef {Object} NodePreset
- * @property {number} GROWTH_BRANCH_CHANCE - Likelihood a node branch will split (0-1).
- * @property {number} GROWTH_THICKNESS - Thickness in pixels for new growth.
- * @property {number} GROWTH_RANDOM_DIR_CHANGE - Random angular change when growing (0-1).
- * @property {number} BASE_GROWTH_CHANCE - Base per-frame chance to grow (0-1).
- *
+ * @property {number} GROWTH_BRANCH_CHANCE Likelihood a node branch will split (0-1).
+ * @property {number} GROWTH_THICKNESS Thickness in pixels for new growth.
+ * @property {number} GROWTH_RANDOM_DIR_CHANGE Random angular change when growing (0-1).
+ * @property {number} BASE_GROWTH_CHANCE Base per-frame chance to grow (0-1).
+ */
+
+/**
  * @typedef {Object} Preset
- * @property {NodePreset} NODE - Per-node settings.
- * @property {number} GROWTH_ACTIONS_PER_FRAME - How many growth actions happen per frame.
- * @property {number} GROWTH_STEP_PIXELS - Pixels moved per growth action.
- * @property {boolean} GROWTH_CONTINUOUS - Whether growth is continuous (vs discrete/triggered).
+ * @property {NodePreset} NODE Per-node settings.
+ * @property {number} GROWTH_ACTIONS_PER_FRAME How many growth actions happen per frame.
+ * @property {number} GROWTH_STEP_PIXELS Pixels moved per growth action.
+ * @property {boolean} GROWTH_CONTINUOUS Whether growth is continuous (vs discrete/triggered).
  */
 
 /** @type {Record<string, Preset>} */
@@ -52,15 +54,20 @@ const PRESETS = {
     }
 };
 
-// Freeze nested objects to prevent accidental mutation at runtime.
-const freezePreset = (p) => {
-    if (p && typeof p === 'object') {
-        if (p.NODE && typeof p.NODE === 'object') Object.freeze(p.NODE);
-        Object.freeze(p);
-    }
-};
-Object.values(PRESETS).forEach(freezePreset);
-Object.freeze(PRESETS);
+// Recursively freeze an object and its nested plain objects.
+// This is safer than a shallow freeze when presets contain nested objects.
+function deepFreeze(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    // Freeze children first
+    Object.keys(obj).forEach((key) => {
+        const val = obj[key];
+        if (val && typeof val === 'object') deepFreeze(val);
+    });
+    return Object.freeze(obj);
+}
+
+// Freeze PRESETS and all nested objects to prevent accidental runtime mutation.
+deepFreeze(PRESETS);
 
 /**
  * Return a preset by name. Use this instead of accessing PRESETS directly if you
@@ -68,8 +75,14 @@ Object.freeze(PRESETS);
  * @param {string} name
  * @returns {Preset | null}
  */
+/**
+ * Lookup a preset by name. Returns null for unknown names.
+ * @param {string} name
+ * @returns {Preset|null}
+ */
 export function getPreset(name) {
-    return PRESETS[name] || null;
+    if (!name) return null;
+    return PRESETS[name] ?? null;
 }
 
 export { PRESETS };
