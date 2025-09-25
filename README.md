@@ -1,10 +1,10 @@
 # Colony
 
-A lightweight browser-based simulation that models simple agents (individuals), nodes, and food sources on an interactive canvas. The UI is intentionally minimal and pixel-styled.
+A lightweight browser-based simulation featuring organic node growth, intelligent agents, and real-time interactions on an interactive canvas.
 
 ## Quick start
 
-Serve the project over HTTP and open it in your browser. Two simple options:
+Serve the project over HTTP and open it in your browser:
 
 ```bash
 # using Python's simple HTTP server
@@ -16,26 +16,31 @@ python3 server.py
 
 Then open your browser at: <http://127.0.0.1:8000>
 
-## Project structure (important files)
+## Usage
 
-- `index.html` — application entry and UI layout
-- `styles.css` — global styles and bundled fonts
-- `js/main.js` — bootstrap and initialization
-- `js/Simulation.js` — core simulation orchestration
-- `js/SimulationRenderer.js` — rendering and dirty-rect handling
-- `js/SimulationEventHandler.js` — input and UI bindings
-- `js/Node.js`, `js/Individual.js`, `js/FoodSource.js` — domain models
-- `js/SpatialGrid.js`, `js/ObjectPool.js` — spatial partitioning and pooling helpers
+1. **Click** on empty canvas area to place initial node (one-time only)
+2. **Hover** over nodes to see statistics in tooltip
+3. **Click** nodes to select/target them  
+4. Use **pause/play** and **speed** controls in the UI
+5. **Reset** button clears simulation and allows new placement
 
-## UI notes
+## Project structure
 
-- Fonts: Ubuntu is bundled under `assets/fonts/` and preloaded in `index.html` to avoid external dependencies and speed up first paint.
+- `index.html` — Application entry and UI layout
+- `styles.css` — Global styles with bundled Ubuntu fonts
+- `js/main.js` — Bootstrap and initialization logic
+- `js/Simulation.js` — Core simulation orchestration and main loop
+- `js/SimulationRenderer.js` — Rendering engine with dirty-rect optimization
+- `js/SimulationEventHandler.js` — Input handling and UI interactions
+- `js/Node.js`, `js/Individual.js`, `js/FoodSource.js` — Domain models
+- `js/SpatialGrid.js`, `js/ObjectPool.js` — Spatial partitioning and memory management
 
-## Development notes
+## Development
 
-- The app uses native ES modules (no bundler). Entry point: `index.html` -> `js/main.js`.
-- Typical dev server: `python3 -m http.server 8000 --bind 127.0.0.1` or `python3 server.py`.
-- Important modules to look at when making changes: `js/Simulation.js`, `js/SimulationRenderer.js`, `js/SimulationEventHandler.js`, and the domain models in `js/`.
+- Uses native ES6 modules (no bundler required)
+- Edit `js/config.js` to modify simulation parameters
+- Built-in performance monitoring and debugging tools
+- Access `window.simulation` in browser console for debugging
 
 ## License
 

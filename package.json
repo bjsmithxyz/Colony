@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "devDependencies": {
-    "purgecss": "^4.1.3"
+    "purgecss": "^6.0.0"
   },
   "scripts": {
     "purge:css": "purgecss --css styles.css --content index.html js/**/*.js --output build/"

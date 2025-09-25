@@ -66,7 +66,6 @@ export const CONFIG = {
     GROWTH_STEP_PIXELS: 2,
     // When true, nodes will continuously convert stored food into growth every tick
     GROWTH_CONTINUOUS: true,
-    // Spawn debug logging
     // Debug flags (centralized)
     DEBUG: {
         startup: false,

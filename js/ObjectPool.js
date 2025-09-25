@@ -4,6 +4,7 @@ export class ObjectPool {
         this.resetFn = resetFn;
         this.pool = [];
         this.active = [];
+        this.maxPoolSize = Math.max(initialSize * 2, 50); // Prevent unbounded growth
         
         // Pre-populate the pool
         for (let i = 0; i < initialSize; i++) {
@@ -28,7 +29,14 @@ export class ObjectPool {
         const index = this.active.indexOf(obj);
         if (index > -1) {
             this.active.splice(index, 1);
-            this.pool.push(obj);
+            
+            // Only return to pool if under max size limit
+            if (this.pool.length < this.maxPoolSize) {
+                this.pool.push(obj);
+            } else {
+                // Let object be garbage collected if pool is full
+                this._cleanupObject(obj);
+            }
             return true;
         }
         return false;
@@ -40,11 +48,43 @@ export class ObjectPool {
         }
     }
 
+    /**
+     * Clean up references in object to prevent memory leaks
+     */
+    _cleanupObject(obj) {
+        if (obj && typeof obj.destroy === 'function') {
+            try {
+                obj.destroy();
+            } catch (e) {
+                console.warn('Error during object cleanup:', e);
+            }
+        }
+    }
+
+    /**
+     * Trim pool size if it grows too large
+     */
+    trimPool(targetSize = 10) {
+        while (this.pool.length > targetSize) {
+            const obj = this.pool.pop();
+            this._cleanupObject(obj);
+        }
+    }
+
     getActiveCount() {
         return this.active.length;
     }
 
     getPoolSize() {
         return this.pool.length;
+    }
+
+    getMemoryInfo() {
+        return {
+            active: this.active.length,
+            pooled: this.pool.length,
+            total: this.active.length + this.pool.length,
+            maxPoolSize: this.maxPoolSize
+        };
     }
 }

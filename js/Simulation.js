@@ -178,6 +178,11 @@ export class Simulation {
             this.updateStats();
         }
 
+        // Memory management - trim object pools occasionally to prevent unbounded growth
+        if (this.frameCount % 1800 === 0) { // Every 30 seconds at 60fps
+            this.individualPool.trimPool(20);
+        }
+
     // spawn bar UI removed: cooldown bars not required
     }
 

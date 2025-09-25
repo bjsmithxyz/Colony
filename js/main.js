@@ -1,5 +1,6 @@
 import { Simulation } from './Simulation.js';
 import { logger } from './logger.js';
+import { errorHandler } from './ErrorHandler.js';
 
 // Convenience global so calling `resetSimulation(true)` from the console works before init
 try {
@@ -14,7 +15,7 @@ try {
 // Initialize simulation when DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        logger.info('Initializing Colony Simulation...');
+        logger.info('Initialising Colony Simulation...');
         
         // Show loading screen
         if (window.enhancedUI) {
@@ -42,7 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (e) {
             // Fail silently; this UI is optional
-            try { logger.debug('ConfigUI not available', e); } catch (ee) {}
+            errorHandler.handleError('ConfigUI Error', e);
         }
         
         // Store global reference for debugging
@@ -51,7 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Start the simulation
         simulation.start();
         
-        logger.info('Colony Simulation initialized successfully');
+        logger.info('Colony Simulation initialised successfully');
         
         // Hide loading screen after a short delay
         setTimeout(() => {
@@ -100,7 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) {}
         
     } catch (error) {
-        logger.error('Failed to initialise simulation:', error);
+        errorHandler.handleError('Initialisation Error', error);
         
         // Hide loading screen and show error
         const loadingScreen = document.getElementById('loadingScreen');
