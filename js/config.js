@@ -9,7 +9,7 @@ export const CONFIG = {
     NODE: {
         SIZE: 3,
         COLOR: '#4CAF50',
-        MAX_NODES: 100,
+        MAX_NODES: 20,
         SPAWN_THRESHOLD: 10,
         FOOD_PER_PIXEL: 1,           // how much food is required for one growth pixel
     GROWTH_BRANCH_CHANCE: 0.32,  // higher to encourage more branching
@@ -32,9 +32,13 @@ export const CONFIG = {
     // When true, nodes will continuously convert stored food into growth every tick
     GROWTH_CONTINUOUS: true,
     // Spawn debug logging
-    DEBUG_SPAWN: true,
-    // Debugging toggles
-    DEBUG_GROWTH_LOG: false,
+    // Debug flags (centralized)
+    DEBUG: {
+        startup: false,
+        performance: false,
+        spawn: false,
+        growth: false
+    },
     INDIVIDUAL: {
         SIZE: 1,
         COLOR: '#2196F3',

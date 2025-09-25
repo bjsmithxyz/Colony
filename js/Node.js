@@ -1,4 +1,5 @@
 import { CONFIG } from './config.js';
+import { logger } from './logger.js';
 import { NodeGrowthManager } from './NodeGrowthManager.js';
 import { NodeRenderer } from './NodeRenderer.js';
 import { NodeShapeGenerator } from './NodeShapeGenerator.js';
@@ -27,6 +28,8 @@ export class Node {
     this.pixelSet = new Set();
     // Edge/frontier pixels for faster growth start selection
     this.edgePixels = new Set();
+    // Cached bounding box (relative to node.x/node.y). Kept up-to-date in addPixel().
+    this.bounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
         
         // Initialize specialized managers
         this.growthManager = new NodeGrowthManager(this);
@@ -46,6 +49,30 @@ export class Node {
         this.markRendererDirty();
     }
 
+    /**
+     * Clean up timers and large references so node can be garbage collected.
+     */
+    destroy() {
+        try {
+            if (this._spawnTimer) {
+                clearTimeout(this._spawnTimer);
+                this._spawnTimer = null;
+            }
+        } catch (e) {}
+
+        // Clear pixel data and helper sets to free memory
+        try {
+            this.pixels.length = 0;
+            this.pixelSet.clear && this.pixelSet.clear();
+            this.edgePixels.clear && this.edgePixels.clear();
+        } catch (e) {}
+
+        // Disconnect managers
+        try { this.growthManager = null; } catch (e) {}
+        try { this.renderer = null; } catch (e) {}
+        try { this.shapeGenerator = null; } catch (e) {}
+    }
+
     markRendererDirty() {
         this.rendererDirty = true;
         // also notify renderer instance if present
@@ -61,9 +88,24 @@ export class Node {
         if (this.pixelSet.has(key)) return false;
         this.pixelSet.add(key);
         this.pixels.push({ dx, dy });
-        if (this.simulation && this.simulation.CONFIG && this.simulation.CONFIG.DEBUG_GROWTH_LOG) {
-            console.log('Node.addPixel', this.x, this.y, dx, dy, 'total', this.pixels.length);
+        // Update cached bounds incrementally (first pixel initializes bounds)
+        if (this.pixels.length === 1) {
+            this.bounds.minX = dx;
+            this.bounds.maxX = dx;
+            this.bounds.minY = dy;
+            this.bounds.maxY = dy;
+        } else {
+            if (dx < this.bounds.minX) this.bounds.minX = dx;
+            if (dx > this.bounds.maxX) this.bounds.maxX = dx;
+            if (dy < this.bounds.minY) this.bounds.minY = dy;
+            if (dy > this.bounds.maxY) this.bounds.maxY = dy;
         }
+        // Use centralized DEBUG flag if present (deferred import to avoid any circular import issues)
+        try {
+            if (this.simulation && this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.growth) {
+                logger.debug('growth', 'Node.addPixel', this.x, this.y, dx, dy, 'total', this.pixels.length);
+            }
+        } catch (e) {}
         // update edgePixels: new pixel may create new frontier entries around it
         const neigh = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
         let isEdge = false;
@@ -127,13 +169,13 @@ export class Node {
     // Check cooldown and food cost (10 food)
     const now = Date.now();
     if (!this.simulation) return false;
-    if (CONFIG.DEBUG_SPAWN) console.log('[spawn] attempt', { node: [this.x, this.y], now, lastSpawnTime: this.lastSpawnTime, food: this.food });
+    if (this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.spawn) logger.debug('spawn','[spawn] attempt',{ node: [this.x, this.y], now, lastSpawnTime: this.lastSpawnTime, food: this.food });
     if (now - this.lastSpawnTime < this.spawnCooldown) {
-        if (CONFIG.DEBUG_SPAWN) console.log('[spawn] blocked by cooldown', { remaining: this.spawnCooldown - (now - this.lastSpawnTime) });
+    if (this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.spawn) logger.debug('spawn','[spawn] blocked by cooldown',{ remaining: this.spawnCooldown - (now - this.lastSpawnTime) });
         return false;
     }
     if (this.food < 10) {
-        if (CONFIG.DEBUG_SPAWN) console.log('[spawn] blocked by insufficient food', { food: this.food });
+        if (this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.spawn) logger.debug('spawn','[spawn] blocked by insufficient food',{ food: this.food });
         return false;
     }
             const individual = this.simulation.individualPool.acquire(this);
@@ -159,7 +201,7 @@ export class Node {
 
                 // Record spawn time for cooldown
                 this.lastSpawnTime = now;
-                if (CONFIG.DEBUG_SPAWN) console.log('[spawn] succeeded', { spawnedId: individual.id, foodLeft: this.food });
+                if (this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.spawn) logger.debug('spawn','[spawn] succeeded',{ spawnedId: individual.id, foodLeft: this.food });
 
                 this.simulation.individuals.push(individual);
                 this.individuals.push(individual);
@@ -190,7 +232,7 @@ export class Node {
             this.simulation.individuals.push(ind);
             this.individuals.push(ind);
             this.simulation.totalIndividualsSpawned++;
-            if (CONFIG.DEBUG_SPAWN) console.log('[spawnImmediate] spawned', ind.id, 'foodLeft', this.food);
+            if (this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.spawn) logger.debug('spawn','[spawnImmediate] spawned', ind.id, 'foodLeft', this.food);
             spawnedCount++;
             if (this.simulation.updateStats) this.simulation.updateStats();
         }

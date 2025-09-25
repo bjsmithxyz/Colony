@@ -5,8 +5,6 @@
 export class SimulationEventHandler {
     constructor(simulation) {
         this.simulation = simulation;
-        this.contextMenu = document.getElementById('contextMenu');
-        this.contextMenuTarget = null;
         this.tooltip = document.getElementById('tooltip');
         this.hoveredNode = null;
         
@@ -25,7 +23,6 @@ export class SimulationEventHandler {
             e.stopPropagation();
             const coords = this.getCanvasCoordinates(e);
             
-            this.hideContextMenu();
             
             const clickedNode = this.simulation.getNodeAt(coords.x, coords.y);
             if (clickedNode) {
@@ -41,23 +38,7 @@ export class SimulationEventHandler {
             }
         });
 
-        // Right click handler
-        this.simulation.canvas.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            const coords = this.getCanvasCoordinates(e);
-            
-            const clickedNode = this.simulation.getNodeAt(coords.x, coords.y);
-            if (clickedNode) {
-                this.showContextMenu(e.clientX, e.clientY, clickedNode);
-            }
-        });
-
-        // Hide context menu when clicking elsewhere
-        document.addEventListener('click', (e) => {
-            if (!this.contextMenu.contains(e.target) && e.target !== this.simulation.canvas) {
-                this.hideContextMenu();
-            }
-        });
+    // (left-click behavior only)
     }
 
     setupUIControls() {
@@ -85,9 +66,6 @@ export class SimulationEventHandler {
             this.simulation.resetSimulation();
         });
 
-    // Spawn UI removed: spawning is automated based on node food
-
-        // Statistics panel and LOD controls removed
     }
 
     setupModuleBridge() {
@@ -147,41 +125,7 @@ export class SimulationEventHandler {
         }
     }
 
-    showContextMenu(x, y, node) {
-        this.contextMenuTarget = node;
-        this.contextMenu.style.display = 'block';
-        this.contextMenu.style.left = `${x}px`;
-        this.contextMenu.style.top = `${y}px`;
-        
-        // Adjust position if menu goes off-screen
-        const menuRect = this.contextMenu.getBoundingClientRect();
-        if (menuRect.right > window.innerWidth) {
-            this.contextMenu.style.left = `${x - menuRect.width}px`;
-        }
-        if (menuRect.bottom > window.innerHeight) {
-            this.contextMenu.style.top = `${y - menuRect.height}px`;
-        }
-    }
-    
-    hideContextMenu() {
-        this.contextMenu.style.display = 'none';
-        this.contextMenuTarget = null;
-    }
-
-    handleContextMenuAction(action, node) {
-        switch (action) {
-            case 'delete':
-                this.simulation.deleteNode(node);
-                break;
-            case 'duplicate':
-                this.simulation.duplicateNode(node);
-                break;
-            /* clear-modules action removed */
-            case 'info':
-                this.simulation.showNodeInfo(node);
-                break;
-        }
-    }
+    // Context menu helpers removed (UI simplified)
 
     showTooltip(x, y, node) {
         const individualCount = this.simulation.individuals.filter(ind => ind.parentNode === node).length;

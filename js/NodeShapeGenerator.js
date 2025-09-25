@@ -75,10 +75,20 @@ export class NodeShapeGenerator {
      * Calculate bounding box of the node's pixels
      */
     getBounds() {
+        // Prefer cached bounds if available (updated in Node.addPixel)
+        if (this.node.bounds && typeof this.node.bounds.minX === 'number') {
+            return {
+                minX: this.node.bounds.minX,
+                maxX: this.node.bounds.maxX,
+                minY: this.node.bounds.minY,
+                maxY: this.node.bounds.maxY
+            };
+        }
+
         if (this.node.pixels.length === 0) {
             return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
         }
-        
+
         return {
             minX: Math.min(...this.node.pixels.map(p => p.dx)),
             maxX: Math.max(...this.node.pixels.map(p => p.dx)),

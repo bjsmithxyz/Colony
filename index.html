@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Colony</title>
+    <!-- Tiny inline favicon to avoid 404 noise during local dev -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%231a1a1a'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="styles.css">
     <!-- Ubuntu font bundled locally via @font-face in styles.css -->
     <link rel="preload" href="/assets/fonts/ubuntu-300.woff2" as="font" type="font/woff2" crossorigin>
@@ -18,7 +20,7 @@
         <div class="loading-content">
             <div class="loading-spinner"></div>
             <h2>Initialising Colony</h2>
-            <p>Loading optimized modular architecture...</p>
+            <p>Loading optimised modular architecture...</p>
             <div class="loading-progress">
                 <div class="loading-progress-bar" id="loadingProgressBar"></div>
             </div>
@@ -41,10 +43,10 @@
                     <span id="fpsIndicator" class="fps-badge">60 FPS</span>
                 </div>
                 <div id="overviewStats" class="overview-stats">
-                    <div class="overview-line">Nodes: <span id="ov_nodeCount">0</span></div>
-                    <div class="overview-line">Individuals: <span id="ov_individualCount">0</span></div>
-                    <div class="overview-line">Food: <span id="ov_totalFood">0</span></div>
-                    <div class="overview-line">Total collected: <span id="ov_foodCollected">0</span></div>
+                    <div class="overview-line">nodes: <span id="ov_nodeCount">0</span></div>
+                    <div class="overview-line">individuals: <span id="ov_individualCount">0</span></div>
+                    <div class="overview-line">current food: <span id="ov_totalFood">0</span></div>
+                    <div class="overview-line">total collected: <span id="ov_foodCollected">0</span></div>
                 </div>
                 <div id="speedControlFloating" class="speed-control-floating">
                     <input type="range" id="speedSlider" min="0.1" max="5" step="0.1" value="1" class="range-slider" aria-label="Simulation speed">
@@ -56,23 +58,17 @@
         </div>
     </div>
 
-    <!-- Context Menu -->
-    <div id="contextMenu" class="context-menu" style="display: none;">
-        <div class="context-menu-header">Node Actions</div>
-        <button class="context-menu-item" data-action="delete">
-            <span class="context-icon">🗑️</span>
-            Delete Node
-        </button>
-        <button class="context-menu-item" data-action="duplicate">
-            <span class="context-icon">📋</span>
-            Duplicate Node
-        </button>
-    
-        <hr class="context-menu-divider">
-        <button class="context-menu-item" data-action="info">
-            <span class="context-icon">ℹ️</span>
-            Node Info
-        </button>
+    <!-- Non-blocking reset confirmation modal (replaces blocking confirm()) -->
+    <div id="resetModal" class="reset-modal" style="display:none;">
+        <div class="reset-modal-backdrop"></div>
+        <div class="reset-modal-content">
+            <h3>Reset Simulation</h3>
+            <p>Are you sure you want to reset the simulation? This will clear all nodes and data.</p>
+            <div class="reset-modal-actions">
+                <button id="resetModalConfirm" class="action-btn">Reset</button>
+                <button id="resetModalCancel" class="action-btn">Cancel</button>
+            </div>
+        </div>
     </div>
 
     <!-- Tooltip -->
