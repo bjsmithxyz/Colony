@@ -1,21 +1,20 @@
 /**
- * Enhanced UI Management System
- * Handles tabbed interfaces, real-time charts, and animations
+ * EnhancedUI — lightweight UI helpers used by the simulation.
+ * Purpose: position floating controls, small animations, and loading screen.
+ * Keep minimal and defensive to avoid coupling with feature modules.
  */
 
 class EnhancedUI {
     constructor() {
         this.charts = {};
-        // no drag state required (drag/drop removed)
-        // Chart.js and advanced charts removed — minimal UI only
+        // Minimal enhanced UI: animations, floating UI positioning, loading screen
         this.init();
     }
     
     init() {
-        this.initializeTabs();
-        this.initializeDragAndDrop();
-        this.initializeAnimations();
-        // Position floating UI elements (FPS, overview stats, speed control)
+    // Keep runtime side-effects: animations and layout positioning
+    this.initializeAnimations();
+    // Position floating UI elements (FPS, overview stats, speed control)
         this.positionFloatingUI();
         // Reposition on resize
         window.addEventListener('resize', () => this.positionFloatingUI());
@@ -26,17 +25,17 @@ class EnhancedUI {
         const canvas = document.getElementById('simulationCanvas');
         if (!canvas) return;
 
-        // Use requestAnimationFrame to ensure layout measurements are accurate
+    // Measure and position within an animation frame for stable layout
         window.requestAnimationFrame(() => {
             const rect = canvas.getBoundingClientRect();
-            const outsideOffset = 35; // px outside the canvas edge
+            const outsideOffset = 35; // px offset from canvas edge
 
             const fps = document.getElementById('fpsIndicator');
             const stats = document.getElementById('overviewStats');
             const speed = document.getElementById('speedControlFloating');
 
             if (fps) {
-                // place FPS at the absolute top-right of the viewport
+                // pin FPS badge to top-right of viewport
                 fps.style.position = 'fixed';
                 fps.style.right = `12px`;
                 fps.style.top = `8px`;
@@ -63,44 +62,7 @@ class EnhancedUI {
     }
     
     /**
-    * Initialize tabbed interfaces for statistics
-     */
-    initializeTabs() {
-        // Tabs removed; keep placeholder to avoid errors if classes exist
-        
-    // Module UI removed
-    }
-    
-    /**
-     * Initialize Chart.js charts for real-time statistics
-     */
-    initializeCharts() {
-        // Charts removed
-    }
-    
-    /**
-     * Update chart data with new statistics
-     */
-    updateChartData(stats) {
-        // Charts removed — no-op
-    }
-    
-    /**
-     * Store chart data for later use when chart becomes available
-     */
-    storeChartData(stats) {
-        // Charts removed — not storing chart data
-    }
-    
-    /**
-     * Drag/drop functionality removed — placeholder kept for compatibility
-     */
-    initializeDragAndDrop() {
-        // No-op
-    }
-    
-    /**
-     * Initialize enhanced animations
+     * Initialize small UI animations and hover effects
      */
     initializeAnimations() {
         // Stagger animation for cards on load
@@ -110,7 +72,7 @@ class EnhancedUI {
         });
         
         // Add hover effects to interactive elements
-    const interactiveElements = document.querySelectorAll('.action-btn');
+        const interactiveElements = document.querySelectorAll('.action-btn');
         interactiveElements.forEach(element => {
             element.addEventListener('mouseenter', () => {
                 element.style.transform = 'translateY(-1px)';
@@ -123,59 +85,37 @@ class EnhancedUI {
     }
     
     /**
-     * Get icon by type
-     */
-    getIcon(type) {
-        const icons = {
-            speed: '⚡',
-            efficiency: '⚙️',
-            vision: '👁️',
-            communication: '📡',
-            specialization: '🎯',
-            capacity: '📦',
-            trail: '🛤️',
-            beacon: '🔍',
-            cluster: '🔗',
-            color: '🎨',
-            priority: '⭐',
-            size: '📏'
-        };
-        return icons[type] || '🔧';
-    }
-    
-    /**
-     * Get name by type
-     */
-    getName(type) {
-        const names = {
-            speed: 'Speed',
-            efficiency: 'Efficiency',
-            vision: 'Vision',
-            communication: 'Communication',
-            specialization: 'Specialization',
-            capacity: 'Capacity',
-            trail: 'Trail',
-            beacon: 'Beacon',
-            cluster: 'Cluster',
-            color: 'Color',
-            priority: 'Priority',
-            size: 'Size'
-        };
-        return names[type] || 'Unknown';
-    }
-    
-    /**
-     * Dispatch events for simulation integration (disabled)
-     */
-    dispatchEvent(eventType, data) {
-        // No-op
-    }
-    
-    /**
-     * Update performance metrics display
+     * Update performance / overview metrics in the DOM.
+     * Lightweight and defensive: updates only existing elements.
      */
     updatePerformanceMetrics(metrics) {
-        // Performance UI removed — do not update DOM here
+        if (!metrics || typeof metrics !== 'object') return;
+
+        const setText = (id, value) => {
+            const el = document.getElementById(id);
+            if (!el || value === undefined || value === null) return;
+            el.textContent = String(value);
+        };
+
+        // Common overview stats
+        setText('ov_nodeCount', metrics.nodeCount ?? metrics.nodes ?? metrics.nodeCountTotal ?? null);
+        setText('ov_individualCount', metrics.individualCount ?? metrics.individuals ?? null);
+        setText('ov_totalFood', metrics.totalFood ?? metrics.currentFood ?? null);
+        setText('ov_foodCollected', metrics.foodCollected ?? metrics.totalCollected ?? null);
+
+        // FPS and memory (if present)
+        if (metrics.currentFPS != null) {
+            const fpsEl = document.getElementById('fpsIndicator');
+            if (fpsEl) fpsEl.textContent = `${Math.round(metrics.currentFPS)} FPS`;
+        }
+
+        if (metrics.memoryUsage != null) {
+            const fpsEl = document.getElementById('fpsIndicator');
+            try {
+                const mb = Math.round(metrics.memoryUsage / 1024 / 1024);
+                if (fpsEl) fpsEl.title = `Memory: ${mb} MB`;
+            } catch (e) {}
+        }
     }
     
     /**
