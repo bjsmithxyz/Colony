@@ -62,7 +62,6 @@ export class NodeGrowthManager {
                 this._growthQueue.push({ type: 'toward', point: depositLocation });
                 if (this._dbg()) console.log('Enqueued toward growth', this.node.x, this.node.y, depositLocation);
                 this._reservedPixels++;
-                this._lastProcessedFood = this.node.food;
                 continue;
             }
 
@@ -72,7 +71,6 @@ export class NodeGrowthManager {
                     this._reservedPixels++;
                     if (this._dbg()) console.log('Enqueued dir growth', this.node.x, this.node.y, sourceDirection);
                 }
-                this._lastProcessedFood = this.node.food;
                 continue;
             }
 
@@ -94,7 +92,7 @@ export class NodeGrowthManager {
             this._growthQueue.push({ type: 'direction', direction: dir });
             this._reservedPixels++;
             if (this._dbg()) console.log('Enqueued rand growth', this.node.x, this.node.y, dir);
-            this._lastProcessedFood = this.node.food;
+            
         }
     }
 
@@ -107,37 +105,7 @@ export class NodeGrowthManager {
         const actionsPerFrame = (cfg && typeof cfg.GROWTH_ACTIONS_PER_FRAME === 'number') ? cfg.GROWTH_ACTIONS_PER_FRAME : 2;
         let processed = 0;
         // If continuous growth is enabled, use the per-frame action budget to convert food directly into growth
-        try {
-            if (cfg && cfg.GROWTH_CONTINUOUS) {
-                const nodeCfg = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
-                const perPixel = (nodeCfg && nodeCfg.FOOD_PER_PIXEL) ? nodeCfg.FOOD_PER_PIXEL : 1;
-                const maxPerAction = (cfg && typeof cfg.GROWTH_STEP_PIXELS === 'number') ? cfg.GROWTH_STEP_PIXELS : 1;
-                let availableActions = actionsPerFrame;
-                // First, consume food-driven growth using this frame's budget
-                // Respect spawn threshold so continuous growth doesn't prevent spawning
-                const spawnThresh = (nodeCfg && typeof nodeCfg.SPAWN_THRESHOLD === 'number') ? nodeCfg.SPAWN_THRESHOLD : 0;
-                while (availableActions > 0 && this.node.food >= perPixel) {
-                    // compute max consumable food this step without dropping below spawn threshold
-                    const maxConsumable = Math.max(0, this.node.food - spawnThresh);
-                    if (maxConsumable < perPixel) break; // leave enough for spawn
-                    const pixelsToGrow = 1 + Math.floor(Math.random() * maxPerAction);
-                    // clamp pixels by available consumable pixels
-                    const consumablePixels = Math.min(pixelsToGrow, Math.floor(maxConsumable / perPixel));
-                    if (consumablePixels <= 0) break;
-                    // choose a growth method: prefer directed toward deposit if available in queue else random direction
-                    const dirs = Object.keys(this.growthDirections);
-                    const dir = dirs[Math.floor(Math.random() * dirs.length)];
-                    this.growInDirection(dir, consumablePixels);
-                    // consume food for the pixels we just created
-                    const consumed = consumablePixels * perPixel;
-                    this.node.food = Math.max(0, this.node.food - consumed);
-                    this._lastProcessedFood = this.node.food;
-                    availableActions--;
-                    processed++;
-                }
-                // Remaining action budget will be used to process queued growth below
-            }
-        } catch (e) {}
+        // Continuous growth conversion is handled in the consolidated block later in this method
         // Baseline slow growth: small chance per tick to extend a tentacle even without food
         try {
             const nodeCfg = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
@@ -158,16 +126,17 @@ export class NodeGrowthManager {
         } catch (e) {}
         while (processed < actionsPerFrame && this._growthQueue.length > 0) {
             const action = this._growthQueue.shift();
-            // consuming one reserved pixel for this queued action
-            if (this._reservedPixels > 0) this._reservedPixels = Math.max(0, this._reservedPixels - 1);
+            // decrease reserved pixels by the number of pixels we will attempt to grow for this action
             if (this._dbg()) console.log('Processing growth action', action, 'for node', this.node.x, this.node.y);
             // Determine pixels per action
             const maxPerAction = (cfg && typeof cfg.GROWTH_STEP_PIXELS === 'number') ? cfg.GROWTH_STEP_PIXELS : 1;
             const pixelsToGrow = 1 + Math.floor(Math.random() * maxPerAction);
             if (action.type === 'toward') {
                 for (let p = 0; p < pixelsToGrow; p++) this.growTowardWorldPoint(action.point);
+                if (this._reservedPixels > 0) this._reservedPixels = Math.max(0, this._reservedPixels - pixelsToGrow);
             } else if (action.type === 'direction') {
                 this.growInDirection(action.direction, pixelsToGrow);
+                if (this._reservedPixels > 0) this._reservedPixels = Math.max(0, this._reservedPixels - pixelsToGrow);
             }
             processed++;
         }
