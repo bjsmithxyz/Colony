@@ -2,11 +2,11 @@
  * Node Growth Manager
  * Handles all growth logic, direction tracking, and pixel expansion for nodes
  */
+import { logger } from './logger.js';
+
 export class NodeGrowthManager {
     constructor(node) {
         this.node = node;
-        
-        // 8-directional growth tracking with support requirements
         this.growthDirections = {
             north: { length: 0, supportLevel: 0 },
             northeast: { length: 0, supportLevel: 0 },
@@ -27,7 +27,7 @@ export class NodeGrowthManager {
     }
 
     _dbg() {
-        return !!(this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG);
+        return !!(this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG && this.node.simulation.CONFIG.DEBUG.growth);
     }
 
     /**
@@ -44,8 +44,8 @@ export class NodeGrowthManager {
 
         // Debug log
         try {
-            if (this._dbg()) console.log('processGrowth computed', { nodeX: this.node.x, nodeY: this.node.y, amount, oldPixels, newPixels, delta });
-            else console.debug && console.debug('processGrowth', { x: this.node.x, y: this.node.y, amount, oldPixels, newPixels, delta });
+            if (this._dbg()) logger.debug('growth','processGrowth computed', { nodeX: this.node.x, nodeY: this.node.y, amount, oldPixels, newPixels, delta });
+            else logger.debug && logger.debug('growth', 'processGrowth', { x: this.node.x, y: this.node.y, amount, oldPixels, newPixels, delta });
         } catch (e) {}
 
         // Cap if top-level configured
@@ -60,7 +60,7 @@ export class NodeGrowthManager {
         for (let i = 0; i < delta; i++) {
             if (depositLocation) {
                 this._growthQueue.push({ type: 'toward', point: depositLocation });
-                if (this._dbg()) console.log('Enqueued toward growth', this.node.x, this.node.y, depositLocation);
+                if (this._dbg()) logger.debug('growth','Enqueued toward growth', this.node.x, this.node.y, depositLocation);
                 this._reservedPixels++;
                 this._lastProcessedFood = this.node.food;
                 continue;
@@ -70,7 +70,7 @@ export class NodeGrowthManager {
                 if (!continuous) {
                     this._growthQueue.push({ type: 'direction', direction: sourceDirection });
                     this._reservedPixels++;
-                    if (this._dbg()) console.log('Enqueued dir growth', this.node.x, this.node.y, sourceDirection);
+                    if (this._dbg()) logger.debug('growth','Enqueued dir growth', this.node.x, this.node.y, sourceDirection);
                 }
                 this._lastProcessedFood = this.node.food;
                 continue;
@@ -93,7 +93,7 @@ export class NodeGrowthManager {
             const dir = weighted[Math.floor(Math.random() * weighted.length)];
             this._growthQueue.push({ type: 'direction', direction: dir });
             this._reservedPixels++;
-            if (this._dbg()) console.log('Enqueued rand growth', this.node.x, this.node.y, dir);
+            if (this._dbg()) logger.debug('growth','Enqueued rand growth', this.node.x, this.node.y, dir);
             this._lastProcessedFood = this.node.food;
         }
     }
@@ -151,16 +151,16 @@ export class NodeGrowthManager {
         } catch (e) {}
         // Debug: report queue size when non-empty
         try {
-            if (this._growthQueue.length > 0) {
-                if (this._dbg()) console.log('tick starting with queue', this._growthQueue.length, 'actionsPerFrame', actionsPerFrame, 'node', this.node.x, this.node.y);
-                else console.debug && console.debug('tick queue', this._growthQueue.length, 'apf', actionsPerFrame, 'node', this.node.x, this.node.y);
+                if (this._growthQueue.length > 0) {
+                if (this._dbg()) logger.debug('growth','tick starting with queue', this._growthQueue.length, 'actionsPerFrame', actionsPerFrame, 'node', this.node.x, this.node.y);
+                else logger.debug && logger.debug('growth', 'tick queue', this._growthQueue.length, 'apf', actionsPerFrame, 'node', this.node.x, this.node.y);
             }
         } catch (e) {}
         while (processed < actionsPerFrame && this._growthQueue.length > 0) {
             const action = this._growthQueue.shift();
             // consuming one reserved pixel for this queued action
             if (this._reservedPixels > 0) this._reservedPixels = Math.max(0, this._reservedPixels - 1);
-            if (this._dbg()) console.log('Processing growth action', action, 'for node', this.node.x, this.node.y);
+            if (this._dbg()) logger.debug('growth','Processing growth action', action, 'for node', this.node.x, this.node.y);
             // Determine pixels per action
             const maxPerAction = (cfg && typeof cfg.GROWTH_STEP_PIXELS === 'number') ? cfg.GROWTH_STEP_PIXELS : 1;
             const pixelsToGrow = 1 + Math.floor(Math.random() * maxPerAction);
@@ -339,10 +339,10 @@ export class NodeGrowthManager {
 
         // Debug: log computed path and endpoints when enabled (explicit numeric values)
         try {
-            if (this._dbg()) {
-                console.log('growTowardWorldPoint', 'node', this.node.x, this.node.y, 'start', startPixel.dx, startPixel.dy, 'target', relX, relY, 'pathLen', path.length, 'path', path);
+                if (this._dbg()) {
+                logger.debug('growth','growTowardWorldPoint', 'node', this.node.x, this.node.y, 'start', startPixel.dx, startPixel.dy, 'target', relX, relY, 'pathLen', path.length, 'path', path);
             } else {
-                console.debug && console.debug('growTowardWorldPoint', 'start', startPixel.dx, startPixel.dy, 'target', relX, relY, 'pathLen', path.length);
+                logger.debug && logger.debug('growth','growTowardWorldPoint', 'start', startPixel.dx, startPixel.dy, 'target', relX, relY, 'pathLen', path.length);
             }
         } catch (e) {}
 
@@ -400,14 +400,14 @@ export class NodeGrowthManager {
                         const tx = candidate.dx + norm.x + o.x;
                         const ty = candidate.dy + norm.y + o.y;
                         if (!(this.node.hasPixel && this.node.hasPixel(tx, ty))) {
-                            if (this._dbg()) console.log('growTowardWorldPoint fallback add', tx, ty, 'from candidate', candidate, 'target', relX, relY);
-                            this._addPixelIfMissing(tx, ty);
+                            if (this._dbg()) logger.debug('growth','growTowardWorldPoint fallback add', tx, ty, 'from candidate', candidate, 'target', relX, relY);
+                                        this._addPixelIfMissing(tx, ty);
                             added = true;
                             break;
                         }
                     }
                 }
-                if (!added && this._dbg()) console.log('growTowardWorldPoint fallback: no empty candidate found');
+                if (!added && this._dbg()) logger.debug('growth','growTowardWorldPoint fallback: no empty candidate found');
             } catch (e) {}
         }
 
@@ -508,7 +508,7 @@ export class NodeGrowthManager {
 
     _addPixelIfMissing(dx, dy) {
         if (this.node && typeof this.node.addPixel === 'function') {
-            try { if (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) console.log('Attempt addPixel', this.node.x, this.node.y, dx, dy); } catch (e) {}
+            try { if (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG && this.node.simulation.CONFIG.DEBUG.growth) logger.debug('growth','Attempt addPixel', this.node.x, this.node.y, dx, dy); } catch (e) {}
             return this.node.addPixel(dx, dy);
         }
         const exists = this.node.pixels.some(p => p.dx === dx && p.dy === dy);

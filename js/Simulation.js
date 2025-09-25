@@ -8,8 +8,8 @@ import { ObjectPool } from './ObjectPool.js';
 import { DirtyRectManager } from './DirtyRectManager.js';
 import { SimulationEventHandler } from './SimulationEventHandler.js';
 import { SimulationRenderer } from './SimulationRenderer.js';
-import { ContextMenuManager } from './ContextMenuManager.js';
 import { PerformanceMonitor } from './PerformanceMonitor.js';
+import { logger } from './logger.js';
 
 // Module implementations removed; no imports
 
@@ -21,7 +21,7 @@ export class Simulation {
     constructor(canvas) {
         this.CONFIG = CONFIG;
         this.canvas = canvas;
-        this.Node = Node; // For context menu manager
+        
         
         this.initializeCanvas();
         this.initializeEntities();
@@ -85,7 +85,7 @@ export class Simulation {
         try {
             this.ctx = this.canvas.getContext('2d', { alpha: false });
         } catch (e) {
-            console.warn('Failed to get context with alpha: false, falling back to default');
+            logger.warn('Failed to get context with alpha: false, falling back to default');
             this.ctx = this.canvas.getContext('2d');
         }
         
@@ -129,10 +129,9 @@ export class Simulation {
         );
         
         // Specialized managers
-        this.eventHandler = new SimulationEventHandler(this);
-        this.renderer = new SimulationRenderer(this);
-        this.contextMenuManager = new ContextMenuManager(this);
-        this.performanceMonitor = new PerformanceMonitor(this);
+    this.eventHandler = new SimulationEventHandler(this);
+    this.renderer = new SimulationRenderer(this);
+    this.performanceMonitor = new PerformanceMonitor(this);
         // spawn bar UI removed: cooldown bars not required
     }
 
@@ -280,7 +279,7 @@ export class Simulation {
     // Entity management
     addNode(x, y, opts = {}) {
         if (this.nodes.length >= CONFIG.NODE.MAX_NODES) {
-            console.warn('Maximum nodes reached:', CONFIG.NODE.MAX_NODES);
+            logger.warn('Maximum nodes reached:', CONFIG.NODE.MAX_NODES);
             return;
         }
         
@@ -316,7 +315,7 @@ export class Simulation {
             this.updateStats();
             return node;
         } catch (error) {
-            console.error('Error adding node:', error);
+            logger.error('Error adding node:', error);
         }
     }
 
@@ -376,7 +375,7 @@ export class Simulation {
             // Update stats
             this.updateStats();
         } catch (e) {
-            console.error('Error merging nodes:', e);
+            logger.error('Error merging nodes:', e);
         }
     }
 
@@ -458,44 +457,94 @@ export class Simulation {
 
     // updateNodeControls removed: UI removed and spawning is automated in Node.storeFood().
 
-    // Delegate context menu actions to ContextMenuManager
     deleteNode(node) {
-        this.contextMenuManager.deleteNode(node);
+    // perform node deletion cleanup
+        const index = this.nodes.indexOf(node);
+        if (index > -1) {
+            this.individuals = this.individuals.filter(ind => ind.parentNode !== node);
+            try { if (node.sharedPool) node.sharedPool.totalFood = Math.max(0, (node.sharedPool.totalFood || 0) - (node.food || 0)); } catch (e) {}
+            try { node.destroy && node.destroy(); } catch (e) {}
+            this.nodes.splice(index, 1);
+            if (this.selectedTarget === node) { this.selectedTarget = null; this.updateModuleUI(); }
+        }
     }
     
     duplicateNode(node) {
-        this.contextMenuManager.duplicateNode(node);
+    // Simple duplicate behavior for node duplication
+        if (!this.playerCanDropNodes) {
+            logger.warn('Manual node creation disabled after initial drop');
+            return;
+        }
+        if (this.nodes.length >= this.CONFIG.NODE.MAX_NODES) {
+            logger.warn('Maximum nodes reached');
+            return;
+        }
+        const offsetX = 30, offsetY = 30;
+        const x = Math.min(node.x + offsetX, this.CONFIG.MAP.WIDTH - 20);
+        const y = Math.min(node.y + offsetY, this.CONFIG.MAP.HEIGHT - 20);
+        const newNode = this.addNode(x, y);
+        if (newNode) {
+            newNode.food = node.food;
+            this.selectTarget(newNode);
+            this.playerCanDropNodes = false;
+            if (this._updateCanvasCursor) this._updateCanvasCursor();
+        }
     }
     
     clearNodeModules(node) {
-        this.contextMenuManager.clearNodeModules(node);
+        // Module system removed: nothing to clear
     }
     
     showNodeInfo(node) {
-        this.contextMenuManager.showNodeInfo(node);
+        const individualCount = this.individuals.filter(ind => ind.parentNode === node).length;
+        alert(`Node Information:\nPosition: (${Math.round(node.x)}, ${Math.round(node.y)})\nFood: ${node.food}\nIndividuals: ${individualCount}`);
     }
 
-    resetSimulation() {
-        if (confirm('Are you sure you want to reset the simulation? This will clear all nodes and data.')) {
-            this.nodes = [];
-            this.individuals = [];
-            this.foodSources = [];
-            this.totalIndividualsSpawned = 0;
-            this.selectedTarget = null;
-            // spawn bar UI removed
-            
-            this.generateFoodSources();
-            // Reset shared pool and counters
-            if (this.sharedNodePool) this.sharedNodePool.totalFood = 0;
-            this.totalFoodCollected = 0;
-            this.updateStats();
-            // updateNodeControls call removed
-            // Re-enable player's ability to drop the initial node after reset
-            this.playerCanDropNodes = true;
-            if (this._updateCanvasCursor) this._updateCanvasCursor();
-            
-            console.log('Simulation reset');
+    resetSimulation(skipConfirm = false) {
+        // If tests or callers pass skipConfirm=true, reset immediately.
+        if (!skipConfirm) {
+            // Show non-blocking reset modal and wait for user action. The modal wiring
+            // is handled in main.js which will call resetSimulation(true) when user confirms.
+            try {
+                const modal = document.getElementById('resetModal');
+                if (modal) {
+                    modal.style.display = 'block';
+                    return; // wait for user confirmation which will re-call resetSimulation(true)
+                }
+            } catch (e) {}
+            // As a fallback, if modal not found, fall back to blocking confirm to preserve behavior
+            const doResetFallback = confirm('Are you sure you want to reset the simulation? This will clear all nodes and data.');
+            if (!doResetFallback) return;
         }
+
+        // Stop realtime performance logging
+        try { this.performanceMonitor && this.performanceMonitor.stopRealtimeLogging && this.performanceMonitor.stopRealtimeLogging(); } catch (e) {}
+
+        // Destroy nodes to release timers and large arrays
+        try {
+            for (const n of this.nodes) {
+                try { n.destroy && n.destroy(); } catch (e) {}
+            }
+        } catch (e) {}
+        this.nodes = [];
+        this.individuals = [];
+        this.foodSources = [];
+        this.totalIndividualsSpawned = 0;
+        this.selectedTarget = null;
+        // spawn bar UI removed
+        
+        this.generateFoodSources();
+        // Reset shared pool and counters
+        if (this.sharedNodePool) this.sharedNodePool.totalFood = 0;
+        this.totalFoodCollected = 0;
+        this.updateStats();
+        // updateNodeControls call removed
+        // Re-enable player's ability to drop the initial node after reset
+        this.playerCanDropNodes = true;
+        if (this._updateCanvasCursor) this._updateCanvasCursor();
+        
+    // Use logger for consistency
+    try { logger.info('Simulation reset'); } catch (e) {}
     }
 
     // Module integration methods

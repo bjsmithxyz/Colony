@@ -2,6 +2,8 @@
  * Performance Monitor
  * Handles performance tracking, optimization, and logging
  */
+import { logger } from './logger.js';
+
 export class PerformanceMonitor {
     constructor(simulation) {
         this.simulation = simulation;
@@ -31,41 +33,46 @@ export class PerformanceMonitor {
         
         this.performanceMetrics.memoryUsage = estimatedMemory;
         
-        console.log('=== PERFORMANCE METRICS ===');
-        console.log(`FPS: ${this.simulation.renderer.fps}`);
-        console.log(`Update Time: ${this.performanceMetrics.updateTime.toFixed(2)}ms`);
-        console.log(`Render Time: ${this.performanceMetrics.renderTime.toFixed(2)}ms`);
-        console.log(`Nodes: ${this.simulation.nodes.length}`);
-        console.log(`Individuals: ${this.simulation.individuals.length}`);
-        console.log(`Total Pixels: ${totalPixels}`);
-        console.log(`Estimated Memory: ${estimatedMemory.toFixed(1)}KB`);
-        
-        // LOD removed — no LOD-related metrics
-        
-        console.log('==========================');
+        try {
+            if (this.simulation && this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.performance) {
+                logger.debug('performance', '=== PERFORMANCE METRICS ===');
+                logger.debug('performance', `FPS: ${this.simulation.renderer.fps}`);
+                logger.debug('performance', `Update Time: ${this.performanceMetrics.updateTime.toFixed(2)}ms`);
+                logger.debug('performance', `Render Time: ${this.performanceMetrics.renderTime.toFixed(2)}ms`);
+                logger.debug('performance', `Nodes: ${this.simulation.nodes.length}`);
+                logger.debug('performance', `Individuals: ${this.simulation.individuals.length}`);
+                logger.debug('performance', `Total Pixels: ${totalPixels}`);
+                logger.debug('performance', `Estimated Memory: ${estimatedMemory.toFixed(1)}KB`);
+                logger.debug('performance', '==========================');
+            }
+        } catch (e) {}
         
         // Performance warnings
         this.checkPerformanceWarnings(totalPixels);
     }
 
     checkPerformanceWarnings(totalPixels) {
-        if (this.simulation.renderer.fps < 30) {
-            console.warn('⚠️ Low FPS detected! Consider reducing entities or optimizing.');
-        }
-        if (this.performanceMetrics.updateTime > 10) {
-            console.warn('⚠️ High update time! Check for expensive operations.');
-        }
-        if (this.performanceMetrics.renderTime > 10) {
-            console.warn('⚠️ High render time! Consider reducing visual complexity.');
-        }
-        if (totalPixels > 10000) {
-            console.warn('⚠️ High pixel count! Node growth may be impacting performance.');
-        }
+        try {
+            if (this.simulation && this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.performance) {
+                if (this.simulation.renderer.fps < 30) {
+                    logger.warn('⚠️ Low FPS detected! Consider reducing entities or optimizing.');
+                }
+                if (this.performanceMetrics.updateTime > 10) {
+                    logger.warn('⚠️ High update time! Check for expensive operations.');
+                }
+                if (this.performanceMetrics.renderTime > 10) {
+                    logger.warn('⚠️ High render time! Consider reducing visual complexity.');
+                }
+                if (totalPixels > 10000) {
+                    logger.warn('⚠️ High pixel count! Node growth may be impacting performance.');
+                }
+            }
+        } catch (e) {}
     }
     
     // Performance testing utility
     performanceStressTest(nodeCount = 10) {
-        console.log(`Starting performance stress test with ${nodeCount} nodes...`);
+    try { if (this.simulation && this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.performance) logger.debug('performance',`Starting performance stress test with ${nodeCount} nodes...`); } catch(e){}
         
         // Clear existing simulation
         this.simulation.nodes = [];
@@ -90,9 +97,11 @@ export class PerformanceMonitor {
             }
         }
         
-        console.log(`Created ${this.simulation.nodes.length} nodes for stress testing`);
-        console.log('Monitor console for performance metrics every 5 seconds');
-        console.log('Recommended: Open browser dev tools > Performance tab to profile');
+        try { if (this.simulation && this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.performance) {
+            logger.debug('performance',`Created ${this.simulation.nodes.length} nodes for stress testing`);
+            logger.debug('performance','Monitor console for performance metrics every 5 seconds');
+            logger.debug('performance','Recommended: Open browser dev tools > Performance tab to profile');
+        } } catch(e){}
         
         // Force immediate performance log
         this.performanceMetrics.lastPerformanceLog = 0;
@@ -105,12 +114,14 @@ export class PerformanceMonitor {
                 const rt = this.performanceMetrics.renderTime || 0;
                 const total = this.performanceMetrics.totalPixels || 0;
                 if (ut > 10 || rt > 10 || total > 10000) {
-                    console.warn('Realtime performance spike detected', { updateTime: ut, renderTime: rt, totalPixels: total });
+                    logger.warn('Realtime performance spike detected', { updateTime: ut, renderTime: rt, totalPixels: total });
                     // Log top 5 nodes by pixel count for inspection
                     const ranked = (this.simulation.nodes || []).slice().sort((a,b) => (b.pixels.length||0) - (a.pixels.length||0)).slice(0,5);
-                    ranked.forEach((n, idx) => {
-                        console.log(`#${idx+1} node @ (${n.x},${n.y}) pixels=${n.pixels.length}`);
-                    });
+                    try { if (this.simulation && this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.performance) {
+                        ranked.forEach((n, idx) => {
+                            logger.debug('performance', `#${idx+1} node @ (${n.x},${n.y}) pixels=${n.pixels.length}`);
+                        });
+                    } } catch(e){}
                 }
             } catch (e) { /* ignore logging errors */ }
         }, 1000);

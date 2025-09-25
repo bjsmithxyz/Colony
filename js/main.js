@@ -1,9 +1,20 @@
 import { Simulation } from './Simulation.js';
+import { logger } from './logger.js';
+
+// Convenience global so calling `resetSimulation(true)` from the console works
+try {
+    window.resetSimulation = function(skipConfirm = true) {
+        if (window.simulation && typeof window.simulation.resetSimulation === 'function') {
+            return window.simulation.resetSimulation(skipConfirm);
+        }
+        logger.warn('Simulation not initialized yet');
+    };
+} catch (e) {}
 
 // Initialize simulation when DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        console.log('Initializing Colony Simulation...');
+    logger.info('Initializing Colony Simulation...');
         
         // Show loading screen
         if (window.enhancedUI) {
@@ -25,7 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Start the simulation
         simulation.start();
         
-        console.log('Colony Simulation initialized successfully');
+    logger.info('Colony Simulation initialized successfully');
         
         // Hide loading screen after a short delay
         setTimeout(() => {
@@ -44,10 +55,36 @@ document.addEventListener('DOMContentLoaded', async () => {
                 loadingScreen.style.display = 'none';
             }
         }, 2500);
-        console.log('Loading screen hide forced (main.js)');
+    logger.debug('startup', 'Loading screen hide forced (main.js)');
+        
+        // Wire reset modal actions (non-blocking replace for confirm())
+        try {
+            const resetModal = document.getElementById('resetModal');
+            const confirmBtn = document.getElementById('resetModalConfirm');
+            const cancelBtn = document.getElementById('resetModalCancel');
+            if (resetModal && confirmBtn && cancelBtn) {
+                confirmBtn.addEventListener('click', () => {
+                    resetModal.style.display = 'none';
+                    try { window.simulation && window.simulation.resetSimulation(true); } catch (e) {}
+                });
+                cancelBtn.addEventListener('click', () => {
+                    resetModal.style.display = 'none';
+                });
+            }
+        } catch (e) {}
+        
+        // Expose a convenience global for quick console resets: resetSimulation(true)
+        try {
+            window.resetSimulation = function(skipConfirm = true) {
+                if (window.simulation && typeof window.simulation.resetSimulation === 'function') {
+                    return window.simulation.resetSimulation(skipConfirm);
+                }
+                    logger.warn('Simulation not initialized yet');
+            };
+        } catch (e) {}
         
     } catch (error) {
-        console.error('Failed to initialize simulation:', error);
+        logger.error('Failed to initialize simulation:', error);
         
         // Hide loading screen and show error
         const loadingScreen = document.getElementById('loadingScreen');
