@@ -37,6 +37,25 @@ Then open your browser at: <http://127.0.0.1:8000>
 - Typical dev server: `python3 -m http.server 8000 --bind 127.0.0.1` or `python3 server.py`.
 - Important modules to look at when making changes: `js/Simulation.js`, `js/SimulationRenderer.js`, `js/SimulationEventHandler.js`, and the domain models in `js/`.
 
+## Smoke tests (automated)
+
+There is a lightweight Puppeteer-based smoke test that loads the local dev server, waits for the simulation to initialise (`window.simulation`) and calls `resetSimulation(true)` to ensure the reset path runs without uncaught exceptions. It captures console logs to `smoke-test-logs.json`.
+
+Run locally:
+
+```bash
+# start server (in a separate terminal)
+python3 server.py
+
+# install deps
+npm install
+
+# run the smoke test (headless)
+npm run smoke:test
+```
+
+Alternatively you can run `npm run smoke` which starts the server briefly and runs the smoke-test (convenience wrapper).
+
 ## License
 
 This project is licensed under the MIT License — see `LICENSE` for details.

@@ -3,9 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "devDependencies": {
-    "purgecss": "^4.1.3"
+    "purgecss": "^4.1.3",
+    "puppeteer": "^21.3.0"
   },
   "scripts": {
-    "purge:css": "purgecss --css styles.css --content index.html js/**/*.js --output build/"
+    "purge:css": "purgecss --css styles.css --content index.html js/**/*.js --output build/",
+    "start:server": "python3 server.py",
+    "smoke:test": "node tools/smoke-test.js",
+    "smoke": "node -e \"(async()=>{ const { spawn } = require('child_process'); const server = spawn('python3',['server.py'], { stdio: 'inherit' }); process.on('exit', ()=> server.kill()); setTimeout(()=>{ require('child_process').spawnSync('node',['tools/smoke-test.js'], { stdio:'inherit' }); server.kill(); }, 1200); })()\""
   }
 }
