@@ -101,7 +101,7 @@ export class ConfigUI {
         header.appendChild(presetSel);
         this.panel.appendChild(header);
 
-        // Body — render editable fields for top-level config sections
+    // Body — render editable fields for top-level config sections
         const body = document.createElement('div');
         body.id = 'configBody';
 
@@ -158,41 +158,136 @@ export class ConfigUI {
         row.style.marginBottom = '8px';
 
         const label = document.createElement('div');
-        label.textContent = path.join('.');
+        label.textContent = this.formatLabel(path);
         label.style.fontSize = '12px';
         label.style.color = '#cbd5e1';
         label.style.flex = '1 1 auto';
 
+        // Choose an appropriate input control
         let input;
+        const isColor = (v) => typeof v === 'string' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v.trim());
         if (typeof value === 'boolean') {
             input = document.createElement('input');
             input.type = 'checkbox';
             input.checked = !!value;
+        } else if (isColor(value)) {
+            // color picker with a small swatch and a text fallback
+            const wrapper = document.createElement('div');
+            wrapper.style.display = 'flex';
+            wrapper.style.gap = '8px';
+            const colorInput = document.createElement('input');
+            colorInput.type = 'color';
+            colorInput.value = value;
+            colorInput.title = value;
+            colorInput.style.width = '40px';
+            colorInput.style.height = '28px';
+
+            const textInput = document.createElement('input');
+            textInput.type = 'text';
+            textInput.value = value;
+            textInput.style.width = '90px';
+            textInput.style.fontSize = '13px';
+
+            // sync color <> text
+            colorInput.addEventListener('input', () => {
+                textInput.value = colorInput.value;
+                this.updateConfigValue(path, colorInput);
+            });
+            textInput.addEventListener('change', () => {
+                const v = textInput.value.trim();
+                if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) {
+                    colorInput.value = v;
+                    this.updateConfigValue(path, colorInput);
+                }
+            });
+
+            wrapper.appendChild(colorInput);
+            wrapper.appendChild(textInput);
+            input = wrapper;
+            // store references for update handler
+            input._primary = colorInput;
         } else if (typeof value === 'number') {
-            input = document.createElement('input');
-            input.type = 'number';
-            input.value = String(value);
-            input.style.width = '90px';
+            // For numeric values, present a slider and a numeric input
+            const wrapper = document.createElement('div');
+            wrapper.style.display = 'flex';
+            wrapper.style.alignItems = 'center';
+            wrapper.style.gap = '8px';
+
+            // Heuristics to choose slider range by key name/value
+            const keyName = path[path.length - 1].toLowerCase();
+            let min = 0, max = Math.max(10, Math.abs(value) * 4), step = 1;
+            if (keyName.includes('chance') || keyName.includes('prob') || keyName.includes('rate')) { min = 0; max = 1; step = 0.01; }
+            else if (keyName.includes('speed') || keyName.includes('movement')) { min = 0; max = Math.max(5, value * 4); step = 0.1; }
+            else if (keyName.includes('thickness') || keyName.includes('size')) { min = 0; max = Math.max(10, value * 4); step = 1; }
+            else if (Math.abs(value) < 1) { min = 0; max = 1; step = 0.01; }
+
+            const range = document.createElement('input');
+            range.type = 'range';
+            range.min = String(min);
+            range.max = String(max);
+            range.step = String(step);
+            range.value = String(value);
+            range.style.width = '140px';
+
+            const num = document.createElement('input');
+            num.type = 'number';
+            num.value = String(value);
+            num.style.width = '70px';
+
+            // sync
+            range.addEventListener('input', () => {
+                num.value = range.value;
+                this.updateConfigValue(path, range);
+            });
+            num.addEventListener('change', () => {
+                const v = Number(num.value);
+                if (!Number.isNaN(v)) {
+                    range.value = String(v);
+                    this.updateConfigValue(path, range);
+                }
+            });
+
+            wrapper.appendChild(range);
+            wrapper.appendChild(num);
+            input = wrapper;
+            input._primary = range;
         } else {
             input = document.createElement('input');
             input.type = 'text';
             input.value = String(value);
             input.style.width = '140px';
         }
-        input.style.background = 'transparent';
-        input.style.color = '#fff';
-        input.style.border = '1px solid rgba(255,255,255,0.04)';
-        input.style.padding = '6px';
-        input.style.borderRadius = '6px';
-        input.style.fontSize = '13px';
+        // Apply generic styles to primitive inputs; complex wrappers already styled
+        if (input instanceof HTMLInputElement) {
+            input.style.background = 'transparent';
+            input.style.color = '#fff';
+            input.style.border = '1px solid rgba(255,255,255,0.04)';
+            input.style.padding = '6px';
+            input.style.borderRadius = '6px';
+            input.style.fontSize = '13px';
 
-        input.addEventListener('change', (e) => {
-            this.updateConfigValue(path, input);
-        });
+            input.addEventListener('change', (e) => {
+                this.updateConfigValue(path, input);
+            });
+        } else {
+            // wrapper with inner _primary input should be wired above
+        }
 
         row.appendChild(label);
         row.appendChild(input);
         return row;
+    }
+
+    formatLabel(path) {
+        // convert ['NODE','GROWTH_BRANCH_CHANCE'] -> 'Node: Growth branch chance'
+        if (!Array.isArray(path)) path = [String(path)];
+        const human = path.map(p => {
+            // replace underscores and dots, lowercase
+            const parts = String(p).toLowerCase().split(/[_\.]/g);
+            return parts.map((s, i) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+        });
+        if (human.length === 1) return human[0];
+        return human[0] + ': ' + human.slice(1).join(' ');
     }
 
     updateConfigValue(path, inputEl) {
