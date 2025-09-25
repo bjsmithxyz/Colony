@@ -258,35 +258,63 @@ export class NodeGrowthManager {
      * Add a single pixel in a direction
      */
     addPixelInDirection(direction) {
-        const directionVectors = {
-            north: { dx: 0, dy: -1 },
-            northeast: { dx: 1, dy: -1 },
-            east: { dx: 1, dy: 0 },
-            southeast: { dx: 1, dy: 1 },
-            south: { dx: 0, dy: 1 },
-            southwest: { dx: -1, dy: 1 },
-            west: { dx: -1, dy: 0 },
-            northwest: { dx: -1, dy: -1 }
-        };
+        // Support existing named directions but grow using a continuous-angle DDA-style step
+        // This yields more organic, meandering tendrils while remaining outward.
+        const cfgNode = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
+        const jitter = (cfgNode && typeof cfgNode.GROWTH_ANGLE_JITTER === 'number') ? cfgNode.GROWTH_ANGLE_JITTER : 0.35; // radians
+        const maxOutwardSteps = (cfgNode && typeof cfgNode.GROWTH_STEP_MAX === 'number') ? cfgNode.GROWTH_STEP_MAX : 64;
 
-        const vector = directionVectors[direction];
-        if (!vector) return;
-        // Prefer starting from the node's edge/frontier pixels for outward growth
-        let start = this._chooseEdgePixelTowards(vector.dx, vector.dy) || { dx: 0, dy: 0 };
-
-        // Step outward from the chosen start until an empty spot is found
-        let nx = start.dx + vector.dx;
-        let ny = start.dy + vector.dy;
-        let steps = 0;
-        const maxOutwardSteps = 64; // safety cap
-        while (this.node.hasPixel && this.node.hasPixel(nx, ny) && steps < maxOutwardSteps) {
-            nx += vector.dx;
-            ny += vector.dy;
-            steps++;
+        // Convert named direction to an angle, otherwise allow a numeric angle input
+        let baseAngle = null;
+        if (typeof direction === 'string') baseAngle = this._directionToAngle(direction);
+        else if (typeof direction === 'number') baseAngle = direction;
+        else if (direction && typeof direction.dx === 'number' && typeof direction.dy === 'number') {
+            baseAngle = Math.atan2(direction.dy, direction.dx);
         }
+        if (baseAngle === null || typeof baseAngle === 'undefined') return;
 
-        // Add the first missing pixel along this ray
-        this._addPixelIfMissing(nx, ny);
+        // Apply jitter to create organic variation
+        const angle = baseAngle + (Math.random() * 2 - 1) * jitter;
+
+        // Choose start pixel biased toward the direction vector
+        const vx = Math.cos(angle);
+        const vy = Math.sin(angle);
+        let start = this._chooseEdgePixelTowards(Math.round(vx), Math.round(vy)) || { dx: 0, dy: 0 };
+
+        // Floating stepping from start using DDA-like approach; round to nearest integer pixel each step
+        let fx = start.dx + 0.0;
+        let fy = start.dy + 0.0;
+        let steps = 0;
+        let added = false;
+        while (steps < maxOutwardSteps && !added) {
+            fx += vx;
+            fy += vy;
+            const nx = Math.round(fx);
+            const ny = Math.round(fy);
+            // If pixel already exists, continue outward
+            if (this.node.hasPixel && this.node.hasPixel(nx, ny)) { steps++; continue; }
+            // Found an empty spot — add pixel and break
+            this._addPixelIfMissing(nx, ny);
+            added = true;
+            break;
+        }
+        // If no pixel added (ray blocked), try small randomized neighbor attempts around the start
+        if (!added) {
+            const tryOffsets = [
+                { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 },
+                { x: 1, y: 1 }, { x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }
+            ];
+            for (let a = 0; a < tryOffsets.length; a++) {
+                const o = tryOffsets[Math.floor(Math.random() * tryOffsets.length)];
+                const tx = start.dx + o.x;
+                const ty = start.dy + o.y;
+                if (!(this.node.hasPixel && this.node.hasPixel(tx, ty))) {
+                    this._addPixelIfMissing(tx, ty);
+                    added = true;
+                    break;
+                }
+            }
+        }
     }
 
     /**
@@ -541,6 +569,21 @@ export class NodeGrowthManager {
             if (proj > bestProj) { bestProj = proj; best = p; }
         }
         return best;
+    }
+
+    _directionToAngle(direction) {
+        // Map eight cardinal/diagonal names to radians (canvas Y-axis points down)
+        const map = {
+            north: -Math.PI / 2,
+            northeast: -Math.PI / 4,
+            east: 0,
+            southeast: Math.PI / 4,
+            south: Math.PI / 2,
+            southwest: 3 * Math.PI / 4,
+            west: Math.PI,
+            northwest: -3 * Math.PI / 4
+        };
+        return map[direction] || 0;
     }
 
     _stepTowards(sx, sy, tx, ty) {
