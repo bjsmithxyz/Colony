@@ -631,6 +631,23 @@ body {
     animation: fadeIn 0.5s ease-out;
 }
 
+/* Configuration UI (cog + panel) */
+#configUiContainer { pointer-events: auto; }
+#configCogBtn { background: rgba(255,255,255,0.04); color: #ffffff; border-radius: 8px; }
+#configCogBtn:hover { transform: rotate(8deg) translateY(-2px); }
+#configPanel { box-shadow: 0 8px 32px rgba(0,0,0,0.6); }
+#configPanel .control-label { font-size: 12px; margin-bottom: 6px; }
+#configPanel input[type="number"], #configPanel input[type="text"] { color: #fff; }
+
+/* ConfigUI: improved input styles */
+#configPanel input[type="color"] { padding: 0; border: none; background: transparent; }
+#configPanel input[type="range"] { width: 140px; }
+#configPanel input[type="text"], #configPanel input[type="number"] {
+    background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.04); padding: 6px; border-radius: 6px;
+}
+#configPanel .control-label { color: #ffffff; font-weight: 600; }
+#configBody > div { margin-bottom: 10px; }
+
 /* Control panel UI removed (animations omitted). */
 
 /* ===== ENHANCED ANIMATIONS ===== */

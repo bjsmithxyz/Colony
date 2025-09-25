@@ -167,23 +167,39 @@ export class NodeRenderer {
      * Render using ImageData for large pixel counts (optimized)
      */
     renderWithImageData(ctx) {
-        const imageData = ctx.createImageData(1, 1);
-        const data = imageData.data;
-        
-        // Extract RGB from color
-        const color = this.node.color.startsWith('#') ? this.node.color.slice(1) : this.node.color;
-        const r = parseInt(color.substr(0, 2), 16);
-        const g = parseInt(color.substr(2, 2), 16);
-        const b = parseInt(color.substr(4, 2), 16);
-        
-        data[0] = r;
-        data[1] = g;
-        data[2] = b;
-        data[3] = 255; // alpha
-        
-        this.node.pixels.forEach(pixel => {
-            ctx.putImageData(imageData, this.node.x + pixel.dx, this.node.y + pixel.dy);
-        });
+        // Build a single ImageData covering the node's bounding box and blit once.
+        const bounds = this.node.shapeGenerator.getBounds();
+        const width = Math.max(1, bounds.maxX - bounds.minX + 1);
+        const height = Math.max(1, bounds.maxY - bounds.minY + 1);
+
+        let imageData;
+        try {
+            imageData = ctx.createImageData(width, height);
+        } catch (e) {
+            // Fallback: if createImageData fails for large sizes, fall back to per-pixel fill
+            this.node.pixels.forEach(pixel => ctx.fillRect(this.node.x + pixel.dx, this.node.y + pixel.dy, 1, 1));
+            return;
+        }
+
+        const buf = imageData.data;
+        const rgba = this._parseColor(this.node.color || '#4CAF50');
+
+        // Fill buffer with transparent first (already zeroed by default)
+        for (const p of this.node.pixels) {
+            const x = p.dx - bounds.minX;
+            const y = p.dy - bounds.minY;
+            if (x < 0 || x >= width || y < 0 || y >= height) continue;
+            const idx = (y * width + x) * 4;
+            buf[idx] = rgba.r;
+            buf[idx + 1] = rgba.g;
+            buf[idx + 2] = rgba.b;
+            buf[idx + 3] = Math.round(rgba.a * 255);
+        }
+
+        // Put the composed image data at the correct world position
+        const drawX = this.node.x + bounds.minX;
+        const drawY = this.node.y + bounds.minY;
+        ctx.putImageData(imageData, drawX, drawY);
     }
 
     /**
@@ -214,6 +230,32 @@ export class NodeRenderer {
         h ^= (this.node.pixels.length & 0xffffffff);
         h = Math.imul(h, 16777619) >>> 0;
         return h >>> 0;
+    }
+
+    _parseColor(colorStr) {
+        const out = { r: 76, g: 175, b: 80, a: 1 };
+        if (!colorStr || typeof colorStr !== 'string') return out;
+        const c = colorStr.trim();
+        try {
+            if (c.startsWith('#')) {
+                if (c.length === 7) {
+                    out.r = parseInt(c.slice(1,3), 16);
+                    out.g = parseInt(c.slice(3,5), 16);
+                    out.b = parseInt(c.slice(5,7), 16);
+                } else if (c.length === 4) {
+                    out.r = parseInt(c[1] + c[1], 16);
+                    out.g = parseInt(c[2] + c[2], 16);
+                    out.b = parseInt(c[3] + c[3], 16);
+                }
+            } else if (c.startsWith('rgb')) {
+                const nums = c.replace(/rgba?\(|\)/g,'').split(',').map(s => parseFloat(s.trim()));
+                if (nums.length >= 3) {
+                    out.r = Math.round(nums[0]); out.g = Math.round(nums[1]); out.b = Math.round(nums[2]);
+                    if (nums.length >= 4) out.a = nums[3];
+                }
+            }
+        } catch (e) {}
+        return out;
     }
 
     _renderWithOffscreen(ctx, bounds, cfg) {
