@@ -8,7 +8,7 @@ import { ObjectPool } from './ObjectPool.js';
 import { DirtyRectManager } from './DirtyRectManager.js';
 import { SimulationEventHandler } from './SimulationEventHandler.js';
 import { SimulationRenderer } from './SimulationRenderer.js';
-import { ContextMenuManager } from './ContextMenuManager.js';
+// ContextMenuManager removed - no import
 import { PerformanceMonitor } from './PerformanceMonitor.js';
 
 // Module implementations removed; no imports
@@ -129,10 +129,9 @@ export class Simulation {
         );
         
         // Specialized managers
-        this.eventHandler = new SimulationEventHandler(this);
-        this.renderer = new SimulationRenderer(this);
-        this.contextMenuManager = new ContextMenuManager(this);
-        this.performanceMonitor = new PerformanceMonitor(this);
+    this.eventHandler = new SimulationEventHandler(this);
+    this.renderer = new SimulationRenderer(this);
+    this.performanceMonitor = new PerformanceMonitor(this);
         // spawn bar UI removed: cooldown bars not required
     }
 
@@ -458,22 +457,7 @@ export class Simulation {
 
     // updateNodeControls removed: UI removed and spawning is automated in Node.storeFood().
 
-    // Delegate context menu actions to ContextMenuManager
-    deleteNode(node) {
-        this.contextMenuManager.deleteNode(node);
-    }
-    
-    duplicateNode(node) {
-        this.contextMenuManager.duplicateNode(node);
-    }
-    
-    clearNodeModules(node) {
-        this.contextMenuManager.clearNodeModules(node);
-    }
-    
-    showNodeInfo(node) {
-        this.contextMenuManager.showNodeInfo(node);
-    }
+    // Context menu manager removed; node actions are handled by other methods
 
     resetSimulation() {
         if (confirm('Are you sure you want to reset the simulation? This will clear all nodes and data.')) {
