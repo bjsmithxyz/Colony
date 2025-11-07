@@ -8,10 +8,7 @@ import { ObjectPool } from './ObjectPool.js';
 import { DirtyRectManager } from './DirtyRectManager.js';
 import { SimulationEventHandler } from './SimulationEventHandler.js';
 import { SimulationRenderer } from './SimulationRenderer.js';
-// ContextMenuManager removed - no import
 import { PerformanceMonitor } from './PerformanceMonitor.js';
-
-// Module implementations removed; no imports
 
 /**
  * Main Simulation class - modular and focused architecture
@@ -21,11 +18,11 @@ export class Simulation {
     constructor(canvas) {
         this.CONFIG = CONFIG;
         this.canvas = canvas;
-        this.Node = Node; // For context menu manager
+        this.Node = Node;
         
         this.initializeCanvas();
         this.initializeEntities();
-    this.initializeSystemsAndManagers();
+        this.initializeSystemsAndManagers();
         
         this.generateFoodSources();
         
@@ -35,14 +32,14 @@ export class Simulation {
         this.frameCount = 0;
         this.selectedTarget = null;
         
-    // Statistics
-    this.totalFoodCollected = 0; // cumulative total collected
-    this.totalIndividualsSpawned = 0;
-    // Track milestones for node-dropping individuals
-    this._nextDropAt = 150;
-    this._markNextSpawnAsDropper = false;
-    // Shared resource pool for nodes (nodes will reference this.sharedNodePool)
-    this.sharedNodePool = { totalFood: 0 };
+        // Statistics
+        this.totalFoodCollected = 0;        // Cumulative total collected
+        this.totalIndividualsSpawned = 0;
+        // Track milestones for node-dropping individuals
+        this._nextDropAt = CONFIG.SIMULATION.DROPPER_MILESTONE_INTERVAL || 150;
+        this._markNextSpawnAsDropper = false;
+        // Shared resource pool for nodes (nodes will reference this.sharedNodePool)
+        this.sharedNodePool = { totalFood: 0 };
 
         // Player controls: allow one manual drop only (initially true)
         this.playerCanDropNodes = true;
@@ -76,7 +73,8 @@ export class Simulation {
 
         // If totalFoodCollected reached next threshold, mark flag so that the next spawned individual will be a dropper
         if (this.totalFoodCollected >= this._nextDropAt) {
-            this._nextDropAt += 150; // schedule next milestone
+            const interval = CONFIG.SIMULATION.DROPPER_MILESTONE_INTERVAL || 150;
+            this._nextDropAt += interval; // schedule next milestone
             this._markNextSpawnAsDropper = true;
         }
     }
@@ -114,12 +112,10 @@ export class Simulation {
     initializeSystemsAndManagers() {
         // Core systems
         this.trailSystem = new TrailSystem(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT);
-    // Module system removed
-    this.spatialGrid = new SpatialGrid(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 32);
-    // Separate grid for nodes where we insert node bounding boxes for faster pixel collision checks
-    this.nodeGrid = new SpatialGrid(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 64);
+        this.spatialGrid = new SpatialGrid(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 32);
+        // Separate grid for nodes where we insert node bounding boxes for faster pixel collision checks
+        this.nodeGrid = new SpatialGrid(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 64);
         this.dirtyRectManager = new DirtyRectManager(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 64);
-    // LevelOfDetail and LOD controls removed
         
         // Object pooling
         this.individualPool = new ObjectPool(
@@ -129,13 +125,10 @@ export class Simulation {
         );
         
         // Specialized managers
-    this.eventHandler = new SimulationEventHandler(this);
-    this.renderer = new SimulationRenderer(this);
-    this.performanceMonitor = new PerformanceMonitor(this);
-        // spawn bar UI removed: cooldown bars not required
+        this.eventHandler = new SimulationEventHandler(this);
+        this.renderer = new SimulationRenderer(this);
+        this.performanceMonitor = new PerformanceMonitor(this);
     }
-
-    // Module system removed: no initializeModules
 
     // Core simulation methods
     update() {
@@ -170,8 +163,8 @@ export class Simulation {
         this.updateNodes();
         this.updateIndividuals();
         
-    // Update systems
-    this.trailSystem.update();
+        // Update systems
+        this.trailSystem.update();
         
         // Update statistics periodically
         if (this.frameCount % 30 === 0) {
@@ -182,11 +175,7 @@ export class Simulation {
         if (this.frameCount % 1800 === 0) { // Every 30 seconds at 60fps
             this.individualPool.trimPool(20);
         }
-
-    // spawn bar UI removed: cooldown bars not required
     }
-
-    // spawn bar UI removed: no updateSpawnBars
 
     updateNodes() {
         this.nodes.forEach(node => {
@@ -294,8 +283,6 @@ export class Simulation {
             // Link node to shared pool so resources can be treated as shared
             node.sharedPool = this.sharedNodePool;
             this.nodes.push(node);
-
-            // spawn bar UI removed
             
             // Create first individual if this is the first node
             if (this.nodes.length === 1) {
@@ -375,8 +362,6 @@ export class Simulation {
             if (survivor && typeof survivor._recomputeEdgePixels === 'function') survivor._recomputeEdgePixels();
             if (survivor && typeof survivor.markRendererDirty === 'function') survivor.markRendererDirty();
 
-            // spawn bar UI removed
-
             // Update stats
             this.updateStats();
         } catch (e) {
@@ -451,53 +436,56 @@ export class Simulation {
         if (ovInd) ovInd.textContent = this.individuals.length;
         if (ovFood) ovFood.textContent = totalFood;
         if (ovCollected) ovCollected.textContent = this.totalFoodCollected;
-        
-    // Node controls UI removed; nothing to update here.
     }
 
     updateModuleUI() {
-        // Module system removed — nothing to update in UI
+        // No-op: module system removed
     }
-    // Module-related UI and drag/drop removed from this build.
 
-    // updateNodeControls removed: UI removed and spawning is automated in Node.storeFood().
-
-    // Context menu manager removed; node actions are handled by other methods
-
-    resetSimulation() {
-        if (confirm('Are you sure you want to reset the simulation? This will clear all nodes and data.')) {
-            this.nodes = [];
-            this.individuals = [];
-            this.foodSources = [];
-            this.totalIndividualsSpawned = 0;
-            this.selectedTarget = null;
-            // spawn bar UI removed
-            
-            this.generateFoodSources();
-            // Reset shared pool and counters
-            if (this.sharedNodePool) this.sharedNodePool.totalFood = 0;
-            this.totalFoodCollected = 0;
-            this.updateStats();
-            // updateNodeControls call removed
-            // Re-enable player's ability to drop the initial node after reset
-            this.playerCanDropNodes = true;
-            if (this._updateCanvasCursor) this._updateCanvasCursor();
-            
-            console.log('Simulation reset');
+    resetSimulation(skipConfirm = false) {
+        // Show modal if confirmation needed, otherwise proceed directly
+        if (!skipConfirm) {
+            const resetModal = document.getElementById('resetModal');
+            if (resetModal) {
+                resetModal.style.display = 'flex';
+                return;
+            }
+            // Fallback to confirm if modal not available
+            if (!confirm('Are you sure you want to reset the simulation? This will clear all nodes and data.')) {
+                return;
+            }
         }
+        
+        // Perform reset
+        this.nodes = [];
+        this.individuals = [];
+        this.foodSources = [];
+        this.totalIndividualsSpawned = 0;
+        this.selectedTarget = null;
+        
+        this.generateFoodSources();
+        // Reset shared pool and counters
+        if (this.sharedNodePool) this.sharedNodePool.totalFood = 0;
+        this.totalFoodCollected = 0;
+        this.updateStats();
+        // Re-enable player's ability to drop the initial node after reset
+        this.playerCanDropNodes = true;
+        if (this._updateCanvasCursor) this._updateCanvasCursor();
+        
+        console.log('Simulation reset');
     }
 
-    // Module integration methods
+    // Module integration methods (no-op: module system removed)
     handleModuleAdded(moduleData) {
-    // Module addition events ignored; modules removed
+        // No-op
     }
     
     handleModuleRemoved(moduleData) {
-    // Module removal events ignored; modules removed
+        // No-op
     }
     
     getModuleClass(moduleType) {
-    return null; // Modules removed
+        return null;
     }
 
     // Main game loop

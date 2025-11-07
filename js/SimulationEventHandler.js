@@ -69,7 +69,7 @@ export class SimulationEventHandler {
     }
 
     setupModuleBridge() {
-        // No-op (subsystem removed)
+        // No-op: module system removed
     }
 
     setupTooltips() {
@@ -125,7 +125,6 @@ export class SimulationEventHandler {
         }
     }
 
-    // Context menu helpers removed (UI simplified)
 
     showTooltip(x, y, node) {
         const individualCount = this.simulation.individuals.filter(ind => ind.parentNode === node).length;

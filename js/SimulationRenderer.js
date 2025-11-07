@@ -9,6 +9,7 @@ export class SimulationRenderer {
         this.canvas = simulation.canvas;
         this.visualEffects = [];
         this.lastRenderTime = 0;
+        this.firstFrame = true; // Track first frame for full render
         
         // FPS tracking
         this.fps = 0;
@@ -30,7 +31,34 @@ export class SimulationRenderer {
         const renderStart = performance.now();
         this.lastRenderTime = now;
         
-        this.renderFull();
+        // Check if dirty rect optimization is enabled
+        const dirtyRectEnabled = this.simulation.CONFIG && 
+                                 this.simulation.CONFIG.RENDER && 
+                                 this.simulation.CONFIG.RENDER.DIRTY_RECT_ENABLED;
+        
+        // Get dirty rects
+        const dirtyRects = this.simulation.dirtyRectManager.getDirtyRects();
+        const hasDirtyRects = dirtyRects && dirtyRects.length > 0;
+        
+        // Use dirty rect rendering if enabled and we have dirty regions (and not first frame)
+        if (dirtyRectEnabled && hasDirtyRects && !this.firstFrame) {
+            // Fallback to full render if too many dirty regions (optimization not helping)
+            const totalDirtyArea = dirtyRects.reduce((sum, rect) => sum + (rect.width * rect.height), 0);
+            const canvasArea = this.simulation.CONFIG.MAP.WIDTH * this.simulation.CONFIG.MAP.HEIGHT;
+            const dirtyPercentage = totalDirtyArea / canvasArea;
+            
+            // If more than 50% of canvas is dirty, just do a full render
+            if (dirtyPercentage > 0.5 || dirtyRects.length > 50) {
+                this.renderFull();
+            } else {
+                this.renderDirtyRegions(dirtyRects);
+            }
+        } else {
+            // Full render on first frame or when dirty rects disabled/empty
+            this.renderFull();
+            this.firstFrame = false;
+        }
+        
         this.renderVisualEffects();
         this.updateAndRenderFPS();
         
@@ -46,7 +74,7 @@ export class SimulationRenderer {
         
         this.simulation.trailSystem.render(this.ctx);
         
-        // Render entities (LOD removed)
+        // Render entities
         this.renderEntities();
     }
 
@@ -68,26 +96,45 @@ export class SimulationRenderer {
     }
     
     renderDirtyRegions(dirtyRects) {
-        this.ctx.save();
-        
+        // Clear dirty regions first
+        this.ctx.fillStyle = this.simulation.CONFIG.MAP.BACKGROUND_COLOR;
         for (const rect of dirtyRects) {
-            // Set clipping region
-            this.ctx.beginPath();
-            this.ctx.rect(rect.x, rect.y, rect.width, rect.height);
-            this.ctx.clip();
-            
-            // Clear the region
-            this.ctx.fillStyle = this.simulation.CONFIG.MAP.BACKGROUND_COLOR;
             this.ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
-            
-            // Render trail system in this region
-            this.simulation.trailSystem.render(this.ctx);
-            
-            // Render entities that intersect with this region
-            this.renderEntitiesInRegion(rect);
         }
         
-        this.ctx.restore();
+        // Render the full trail system (it maintains its own canvas with proper fading)
+        // This ensures trails render correctly without flashing
+        this.ctx.globalCompositeOperation = 'source-over';
+        this.simulation.trailSystem.render(this.ctx);
+        
+        // Collect all entities that intersect any dirty region (render once, not per-rect)
+        const entitiesToRender = new Set();
+        
+        for (const rect of dirtyRects) {
+            // Find entities that intersect this dirty region
+            for (const food of this.simulation.foodSources) {
+                if (this.entityIntersectsRect(food, rect)) {
+                    entitiesToRender.add(food);
+                }
+            }
+            
+            for (const node of this.simulation.nodes) {
+                if (this.nodeIntersectsRect(node, rect)) {
+                    entitiesToRender.add(node);
+                }
+            }
+            
+            for (const individual of this.simulation.individuals) {
+                if (this.entityIntersectsRect(individual, rect)) {
+                    entitiesToRender.add(individual);
+                }
+            }
+        }
+        
+        // Render all collected entities once
+        for (const entity of entitiesToRender) {
+            entity.render(this.ctx);
+        }
     }
     
     renderEntitiesInRegion(rect) {
@@ -124,6 +171,20 @@ export class SimulationRenderer {
                 entityLeft > rect.x + rect.width ||
                 entityBottom < rect.y || 
                 entityTop > rect.y + rect.height);
+    }
+    
+    nodeIntersectsRect(node, rect) {
+        // Nodes can be large, so check their bounding box
+        const bounds = node.getBounds();
+        const nodeLeft = node.x + bounds.minX;
+        const nodeRight = node.x + bounds.maxX;
+        const nodeTop = node.y + bounds.minY;
+        const nodeBottom = node.y + bounds.maxY;
+        
+        return !(nodeRight < rect.x || 
+                nodeLeft > rect.x + rect.width ||
+                nodeBottom < rect.y || 
+                nodeTop > rect.y + rect.height);
     }
 
     addVisualEffect(x, y, type) {
@@ -221,7 +282,6 @@ export class SimulationRenderer {
             const performanceMetrics = {
                 currentFPS: this.fps,
                 avgFPS: this.avgFps,
-                lodLevel: 'High',
                 memoryUsage: performance && performance.memory ? performance.memory.usedJSHeapSize : null
             };
             window.enhancedUI.updatePerformanceMetrics(performanceMetrics);

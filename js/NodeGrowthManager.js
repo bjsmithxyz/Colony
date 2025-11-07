@@ -24,6 +24,13 @@ export class NodeGrowthManager {
         this._lastProcessedFood = (this.node && typeof this.node.lastFoodAmount === 'number') ? this.node.lastFoodAmount : 0;
         // Number of pixels reserved by queued growth actions (not yet consumed from node.food)
         this._reservedPixels = 0;
+        // Maximum queue size to prevent unbounded growth
+        this._updateMaxQueueSize();
+    }
+
+    _updateMaxQueueSize() {
+        const cfg = this.node && this.node.simulation && this.node.simulation.CONFIG;
+        this._maxQueueSize = (cfg && typeof cfg.GROWTH_QUEUE_MAX_SIZE === 'number') ? cfg.GROWTH_QUEUE_MAX_SIZE : 100;
     }
 
     _dbg() {
@@ -57,7 +64,16 @@ export class NodeGrowthManager {
         // Enqueue growth actions unless continuous draining will handle them (except for deposit-directed growth)
         const continuous = topCfg && topCfg.GROWTH_CONTINUOUS;
 
+        // Update max queue size from config (in case it changed)
+        this._updateMaxQueueSize();
+        
         for (let i = 0; i < delta; i++) {
+            // Check queue size limit before adding
+            if (this._growthQueue.length >= this._maxQueueSize) {
+                if (this._dbg()) console.warn('Growth queue full, dropping growth action', this.node.x, this.node.y);
+                break; // Drop excess growth actions to prevent unbounded queue growth
+            }
+            
             if (depositLocation) {
                 this._growthQueue.push({ type: 'toward', point: depositLocation });
                 if (this._dbg()) console.log('Enqueued toward growth', this.node.x, this.node.y, depositLocation);

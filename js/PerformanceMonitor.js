@@ -39,9 +39,6 @@ export class PerformanceMonitor {
         console.log(`Individuals: ${this.simulation.individuals.length}`);
         console.log(`Total Pixels: ${totalPixels}`);
         console.log(`Estimated Memory: ${estimatedMemory.toFixed(1)}KB`);
-        
-        // LOD removed — no LOD-related metrics
-        
         console.log('==========================');
         
         // Performance warnings

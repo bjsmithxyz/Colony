@@ -18,18 +18,18 @@ export class Node {
         this.size = CONFIG.NODE.SIZE;
         this.pulseAnimation = 0;
         this.simulation = null;
-    this.lastFoodAmount = 0;
-    this.lastSpawnTime = 0; // timestamp (ms) of last automatic spawn (kept for compatibility)
-    this.spawnCooldown = 5000; // cooldown in milliseconds between spawns
+        this.lastFoodAmount = 0;
+        this.lastSpawnTime = 0;             // Timestamp (ms) of last automatic spawn (kept for compatibility)
+        this.spawnCooldown = CONFIG.NODE.SPAWN_COOLDOWN || 5000; // Cooldown in milliseconds between spawns
         
         // Initialize pixel array for organic shape
-    this.pixels = [];
-    // Fast lookup set for pixel existence, keys are "dx,dy"
-    this.pixelSet = new Set();
-    // Edge/frontier pixels for faster growth start selection
-    this.edgePixels = new Set();
-    // Cached bounding box (relative to node.x/node.y). Kept up-to-date in addPixel().
-    this.bounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+        this.pixels = [];
+        // Fast lookup set for pixel existence, keys are "dx,dy"
+        this.pixelSet = new Set();
+        // Edge/frontier pixels for faster growth start selection
+        this.edgePixels = new Set();
+        // Cached bounding box (relative to node.x/node.y). Kept up-to-date in addPixel().
+        this.bounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
         
         // Initialize specialized managers
         this.growthManager = new NodeGrowthManager(this);
@@ -133,6 +133,17 @@ export class Node {
             }
         }
         this.markRendererDirty();
+        
+        // Mark dirty rect for rendering optimization
+        if (this.simulation && this.simulation.dirtyRectManager) {
+            const bounds = this.getBounds();
+            const worldX = this.x + bounds.minX;
+            const worldY = this.y + bounds.minY;
+            const worldWidth = bounds.maxX - bounds.minX + 1;
+            const worldHeight = bounds.maxY - bounds.minY + 1;
+            this.simulation.dirtyRectManager.markDirty(worldX, worldY, worldWidth, worldHeight);
+        }
+        
         return true;
     }
 
@@ -166,16 +177,17 @@ export class Node {
      * Spawn a new individual at this node
      */
     spawn() {
-    // Check cooldown and food cost (10 food)
+    // Check cooldown and food cost
     const now = Date.now();
     if (!this.simulation) return false;
+    const spawnCost = (this.simulation.CONFIG && this.simulation.CONFIG.NODE && this.simulation.CONFIG.NODE.SPAWN_COST) || 10;
     if (this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.spawn) logger.debug('spawn','[spawn] attempt',{ node: [this.x, this.y], now, lastSpawnTime: this.lastSpawnTime, food: this.food });
     if (now - this.lastSpawnTime < this.spawnCooldown) {
     if (this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.spawn) logger.debug('spawn','[spawn] blocked by cooldown',{ remaining: this.spawnCooldown - (now - this.lastSpawnTime) });
         return false;
     }
-    if (this.food < 10) {
-        if (this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.spawn) logger.debug('spawn','[spawn] blocked by insufficient food',{ food: this.food });
+    if (this.food < spawnCost) {
+        if (this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.spawn) logger.debug('spawn','[spawn] blocked by insufficient food',{ food: this.food, required: spawnCost });
         return false;
     }
             const individual = this.simulation.individualPool.acquire(this);
@@ -193,10 +205,10 @@ export class Node {
             }
             
                 // Deduct food cost
-                this.food -= 10;
+                this.food -= spawnCost;
                 // Reflect spend in shared pool if present
                 if (this.sharedPool) {
-                    this.sharedPool.totalFood = Math.max(0, (this.sharedPool.totalFood || 0) - 10);
+                    this.sharedPool.totalFood = Math.max(0, (this.sharedPool.totalFood || 0) - spawnCost);
                 }
 
                 // Record spawn time for cooldown
@@ -217,8 +229,9 @@ export class Node {
      */
     spawnImmediate() {
         if (!this.simulation) return 0;
+        const spawnCost = (this.simulation.CONFIG && this.simulation.CONFIG.NODE && this.simulation.CONFIG.NODE.SPAWN_COST) || 10;
         let spawnedCount = 0;
-    while (this.food >= 10) {
+    while (this.food >= spawnCost) {
             const ind = this.simulation.individualPool.acquire(this);
             if (this.simulation && this.simulation._markNextSpawnAsDropper) {
                 ind.willDropNodeOnDeath = true;
@@ -226,8 +239,8 @@ export class Node {
                 this.simulation._markNextSpawnAsDropper = false;
             }
             if (this.specializationEnabled) ind.assignSpecialization();
-            this.food -= 10;
-            if (this.sharedPool) this.sharedPool.totalFood = Math.max(0, (this.sharedPool.totalFood || 0) - 10);
+            this.food -= spawnCost;
+            if (this.sharedPool) this.sharedPool.totalFood = Math.max(0, (this.sharedPool.totalFood || 0) - spawnCost);
             this.lastSpawnTime = Date.now();
             this.simulation.individuals.push(ind);
             this.individuals.push(ind);
@@ -243,7 +256,8 @@ export class Node {
      * Check if node can spawn (has enough food)
      */
     canSpawn() {
-        return this.food >= 10;
+        const spawnCost = (this.simulation && this.simulation.CONFIG && this.simulation.CONFIG.NODE && this.simulation.CONFIG.NODE.SPAWN_COST) || 10;
+        return this.food >= spawnCost;
     }
 
     /**
@@ -260,7 +274,8 @@ export class Node {
             this._spawnTimer = setTimeout(() => {
                 this._spawnTimer = null;
                 // Try to spawn as many as possible now
-                while (this.food >= 10) {
+                const spawnCost = (this.simulation.CONFIG && this.simulation.CONFIG.NODE && this.simulation.CONFIG.NODE.SPAWN_COST) || 10;
+                while (this.food >= spawnCost) {
                     const spawned = this.spawn();
                     if (!spawned) {
                         // still on cooldown or spawn failed, reschedule and exit
@@ -311,7 +326,8 @@ export class Node {
                 if (spawned > 0 && this.simulation.updateStats) this.simulation.updateStats();
             } else {
                 // Try to spawn as many as possible now, respecting cooldown
-                while (this.food >= 10) {
+                const spawnCost = (this.simulation.CONFIG && this.simulation.CONFIG.NODE && this.simulation.CONFIG.NODE.SPAWN_COST) || 10;
+                while (this.food >= spawnCost) {
                     const spawned = this.spawn();
                     // If spawn fails due to cooldown, schedule remaining spawns and exit loop
                     if (!spawned) {
@@ -321,7 +337,7 @@ export class Node {
 
                     // Update stats after successful spawn
                     if (this.simulation.updateStats) this.simulation.updateStats();
-                    // Continue loop to attempt further immediate spawns (until food < 10 or cooldown applies)
+                    // Continue loop to attempt further immediate spawns (until food < spawnCost or cooldown applies)
                 }
             }
         }

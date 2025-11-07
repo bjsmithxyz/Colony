@@ -111,8 +111,11 @@ export class Individual {
 
     updateEnergy() {
         // Simple energy system - individuals die if they don't find food
+        const maxEnergy = (this.simulation && this.simulation.CONFIG && this.simulation.CONFIG.INDIVIDUAL && this.simulation.CONFIG.INDIVIDUAL.MAX_ENERGY) || 3000;
+        const initialEnergy = (this.simulation && this.simulation.CONFIG && this.simulation.CONFIG.INDIVIDUAL && this.simulation.CONFIG.INDIVIDUAL.INITIAL_ENERGY) || 3000;
+        
         if (this.carrying === 0) {
-            this.energyLevel = (this.energyLevel || 3000) - this.energyConsumption;
+            this.energyLevel = (this.energyLevel || initialEnergy) - this.energyConsumption;
             if (this.energyLevel <= 0) {
                 // Respect initial immunity: the very first spawned individual may be immune
                 if (!this.initialImmune) {
@@ -120,7 +123,7 @@ export class Individual {
                 }
             }
         } else {
-            this.energyLevel = 3000; // Reset energy when carrying food
+            this.energyLevel = maxEnergy; // Reset energy when carrying food
         }
     }
 
