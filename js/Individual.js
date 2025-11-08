@@ -1,4 +1,5 @@
 import { CONFIG } from './config.js';
+import { CONSTANTS } from './constants.js';
 import { IndividualAI } from './IndividualAI.js';
 
 /**
@@ -111,11 +112,19 @@ export class Individual {
 
     updateEnergy() {
         // Simple energy system - individuals die if they don't find food
-        const maxEnergy = (this.simulation && this.simulation.CONFIG && this.simulation.CONFIG.INDIVIDUAL && this.simulation.CONFIG.INDIVIDUAL.MAX_ENERGY) || 3000;
-        const initialEnergy = (this.simulation && this.simulation.CONFIG && this.simulation.CONFIG.INDIVIDUAL && this.simulation.CONFIG.INDIVIDUAL.INITIAL_ENERGY) || 3000;
+        const maxEnergy = (this.simulation?.CONFIG?.INDIVIDUAL?.MAX_ENERGY) ?? CONSTANTS.DEFAULT_MAX_ENERGY;
+        const initialEnergy = (this.simulation?.CONFIG?.INDIVIDUAL?.INITIAL_ENERGY) ?? CONSTANTS.DEFAULT_INITIAL_ENERGY;
         
         if (this.carrying === 0) {
-            this.energyLevel = (this.energyLevel || initialEnergy) - this.energyConsumption;
+            // Base energy consumption
+            let consumption = this.energyConsumption;
+            
+            // Apply terrain cost multiplier if terrain is enabled and cost was calculated
+            if (this._terrainCost && this._terrainCost > 1.0) {
+                consumption *= this._terrainCost;
+            }
+            
+            this.energyLevel = (this.energyLevel || initialEnergy) - consumption;
             if (this.energyLevel <= 0) {
                 // Respect initial immunity: the very first spawned individual may be immune
                 if (!this.initialImmune) {

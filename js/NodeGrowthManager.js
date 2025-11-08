@@ -1,3 +1,5 @@
+import { CONSTANTS } from './constants.js';
+
 /**
  * Node Growth Manager
  * Handles all growth logic, direction tracking, and pixel expansion for nodes
@@ -96,14 +98,35 @@ export class NodeGrowthManager {
                 continue;
             }
 
-            // Weighted random: prefer cardinals
+            // Weighted random: prefer cardinals, but adjust for terrain
             const weights = { north: 2, south: 2, east: 2, west: 2, northeast: 1, northwest: 1, southeast: 1, southwest: 1 };
             const dirs = Object.keys(this.growthDirections);
             const weighted = [];
-            for (const d of dirs) {
-                const w = weights[d] || 1;
-                for (let k = 0; k < w; k++) weighted.push(d);
+            
+            // Apply terrain weighting if terrain is enabled
+            if (this.node.simulation && this.node.simulation.terrainMap) {
+                for (const d of dirs) {
+                    const baseWeight = weights[d] || 1;
+                    // Get terrain cost for this direction
+                    const angle = this._directionToAngle(d);
+                    const checkX = this.node.x + Math.cos(angle) * 10;
+                    const checkY = this.node.y + Math.sin(angle) * 10;
+                    const terrainCost = this.node.simulation.terrainMap.getGrowthCost(checkX, checkY, d);
+                    
+                    // Invert cost to get preference (lower cost = higher preference)
+                    const terrainWeight = Math.max(0.3, 2.0 - terrainCost); // Minimum 0.3x weight
+                    const adjustedWeight = Math.floor(baseWeight * terrainWeight);
+                    
+                    for (let k = 0; k < adjustedWeight; k++) weighted.push(d);
+                }
+            } else {
+                // No terrain - use base weights
+                for (const d of dirs) {
+                    const w = weights[d] || 1;
+                    for (let k = 0; k < w; k++) weighted.push(d);
+                }
             }
+            
             const dir = weighted[Math.floor(Math.random() * weighted.length)];
             this._growthQueue.push({ type: 'direction', direction: dir });
             this._reservedPixels++;
@@ -174,10 +197,27 @@ export class NodeGrowthManager {
                     const weights = { north: 2, south: 2, east: 2, west: 2, northeast: 1, northwest: 1, southeast: 1, southwest: 1 };
                     const dirs = Object.keys(this.growthDirections);
                     const weighted = [];
-                    for (const d of dirs) {
-                        const w = weights[d] || 1;
-                        for (let k = 0; k < w; k++) weighted.push(d);
+                    
+                    // Apply terrain weighting if terrain is enabled
+                    if (this.node.simulation && this.node.simulation.terrainMap) {
+                        for (const d of dirs) {
+                            const baseWeight = weights[d] || 1;
+                            const angle = this._directionToAngle(d);
+                            const checkX = this.node.x + Math.cos(angle) * 10;
+                            const checkY = this.node.y + Math.sin(angle) * 10;
+                            const terrainCost = this.node.simulation.terrainMap.getGrowthCost(checkX, checkY, d);
+                            const terrainWeight = Math.max(0.3, 2.0 - terrainCost);
+                            const adjustedWeight = Math.floor(baseWeight * terrainWeight);
+                            
+                            for (let k = 0; k < adjustedWeight; k++) weighted.push(d);
+                        }
+                    } else {
+                        for (const d of dirs) {
+                            const w = weights[d] || 1;
+                            for (let k = 0; k < w; k++) weighted.push(d);
+                        }
                     }
+                    
                     // Respect spawn threshold when converting available food into growth
                     const spawnThresh2 = (nodeCfg && typeof nodeCfg.SPAWN_THRESHOLD === 'number') ? nodeCfg.SPAWN_THRESHOLD : 0;
                     while (toConvert > 0) {
@@ -206,14 +246,29 @@ export class NodeGrowthManager {
         const growthData = this.growthDirections[direction];
         
         for (let i = 0; i < pixels; i++) {
+            // Calculate terrain cost for this growth direction
+            let growthCost = 1.0;
+            if (this.node.simulation && this.node.simulation.terrainMap) {
+                // Estimate next position for terrain check
+                const angle = this._directionToAngle(direction);
+                const nextX = this.node.x + Math.cos(angle) * (growthData.length + 1);
+                const nextY = this.node.y + Math.sin(angle) * (growthData.length + 1);
+                growthCost = this.node.simulation.terrainMap.getGrowthCost(nextX, nextY, direction);
+            }
+            
+            // Skip growth if terrain cost is too high (random chance based on cost)
+            if (growthCost > 1.5 && Math.random() < (growthCost - 1.0) * 0.3) {
+                continue; // Skip this growth step due to difficult terrain
+            }
+            
             // Add length pixel first
             this.addPixelInDirection(direction);
             growthData.length++;
             this.totalGrowth++;
             
-            // Check if we just reached a support milestone (5, 10, 15...)
-            if (growthData.length % 5 === 0) {
-                const requiredSupport = Math.floor(growthData.length / 5) * 2;
+            // Check if we just reached a support milestone
+            if (growthData.length % CONSTANTS.SUPPORT_MILESTONE_INTERVAL === 0) {
+                const requiredSupport = Math.floor(growthData.length / CONSTANTS.SUPPORT_MILESTONE_INTERVAL) * CONSTANTS.SUPPORT_PIXELS_PER_MILESTONE;
                 if (growthData.supportLevel < requiredSupport) {
                     // Add support pixels after reaching milestone
                     const supportToAdd = requiredSupport - growthData.supportLevel;
@@ -222,15 +277,36 @@ export class NodeGrowthManager {
                 }
             }
 
-            // Small chance to deviate/jitter the growth direction to create meandering
+            // Natural branching: small chance to create side branches for more organic tentacles
             try {
-                const rnd = (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.NODE && typeof this.node.simulation.CONFIG.NODE.GROWTH_RANDOM_DIR_CHANGE === 'number') ? this.node.simulation.CONFIG.NODE.GROWTH_RANDOM_DIR_CHANGE : 0.2;
-                if (Math.random() < rnd) {
-                    // pick a nearby direction (rotate left/right or diagonals)
+                const nodeCfg = this.node?.simulation?.CONFIG?.NODE;
+                const branchChance = (nodeCfg && typeof nodeCfg.GROWTH_RANDOM_DIR_CHANGE === 'number') 
+                    ? nodeCfg.GROWTH_RANDOM_DIR_CHANGE 
+                    : 0.2;
+                    
+                if (Math.random() < branchChance) {
+                    // Pick a nearby direction (prefer adjacent directions for natural branching)
                     const dirs = Object.keys(this.growthDirections);
-                    const alternatives = dirs.filter(d => d !== direction);
-                    const pick = alternatives[Math.floor(Math.random() * alternatives.length)];
-                    // add a small branch immediately
+                    const directionIndex = dirs.indexOf(direction);
+                    
+                    // Prefer adjacent directions (left/right of current direction)
+                    const adjacentIndices = [
+                        (directionIndex - 1 + dirs.length) % dirs.length,
+                        (directionIndex + 1) % dirs.length
+                    ];
+                    
+                    // 70% chance to pick adjacent, 30% chance for any other direction
+                    let pickIndex;
+                    if (Math.random() < 0.7 && adjacentIndices.length > 0) {
+                        pickIndex = adjacentIndices[Math.floor(Math.random() * adjacentIndices.length)];
+                    } else {
+                        const alternatives = dirs.filter((_, idx) => idx !== directionIndex);
+                        const altDir = alternatives[Math.floor(Math.random() * alternatives.length)];
+                        pickIndex = dirs.indexOf(altDir);
+                    }
+                    
+                    const pick = dirs[pickIndex];
+                    // Add a small branch immediately
                     this.addPixelInDirection(pick);
                     this.growthDirections[pick].length++;
                     this.totalGrowth++;
@@ -246,8 +322,8 @@ export class NodeGrowthManager {
         // Support existing named directions but grow using a continuous-angle DDA-style step
         // This yields more organic, meandering tendrils while remaining outward.
         const cfgNode = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
-        const jitter = (cfgNode && typeof cfgNode.GROWTH_ANGLE_JITTER === 'number') ? cfgNode.GROWTH_ANGLE_JITTER : 0.35; // radians
-        const maxOutwardSteps = (cfgNode && typeof cfgNode.GROWTH_STEP_MAX === 'number') ? cfgNode.GROWTH_STEP_MAX : 64;
+        const jitter = (cfgNode && typeof cfgNode.GROWTH_ANGLE_JITTER === 'number') ? cfgNode.GROWTH_ANGLE_JITTER : CONSTANTS.DEFAULT_GROWTH_ANGLE_JITTER;
+        const maxOutwardSteps = (cfgNode && typeof cfgNode.GROWTH_STEP_MAX === 'number') ? cfgNode.GROWTH_STEP_MAX : CONSTANTS.MAX_GROWTH_STEPS;
 
         // Convert named direction to an angle, otherwise allow a numeric angle input
         let baseAngle = null;
@@ -258,8 +334,11 @@ export class NodeGrowthManager {
         }
         if (baseAngle === null || typeof baseAngle === 'undefined') return;
 
-        // Apply jitter to create organic variation
-        const angle = baseAngle + (Math.random() * 2 - 1) * jitter;
+        // Apply jitter to create organic variation (more natural tentacle growth)
+        // Use a smoother distribution for more natural curves
+        const jitterAmount = (Math.random() * 2 - 1) * jitter;
+        // Apply slight smoothing to prevent too much randomness
+        const angle = baseAngle + jitterAmount * 0.7;
 
         // Choose start pixel biased toward the direction vector
         const vx = Math.cos(angle);
@@ -278,25 +357,28 @@ export class NodeGrowthManager {
             const ny = Math.round(fy);
             // If pixel already exists, continue outward
             if (this.node.hasPixel && this.node.hasPixel(nx, ny)) { steps++; continue; }
-            // Found an empty spot — add pixel and break
-            this._addPixelIfMissing(nx, ny);
-            added = true;
-            break;
+            // Found an empty spot — add pixel and check for merges
+            if (this._addPixelIfMissing(nx, ny)) {
+                added = true;
+                // Check for merge with other nodes after adding pixel
+                this._checkForMerge(nx, ny);
+                break;
+            }
         }
         // If no pixel added (ray blocked), try small randomized neighbor attempts around the start
         if (!added) {
-            const tryOffsets = [
-                { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 },
-                { x: 1, y: 1 }, { x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }
-            ];
+                const tryOffsets = CONSTANTS.NEIGHBOR_OFFSETS.map(([x, y]) => ({ x, y }));
             for (let a = 0; a < tryOffsets.length; a++) {
                 const o = tryOffsets[Math.floor(Math.random() * tryOffsets.length)];
                 const tx = start.dx + o.x;
                 const ty = start.dy + o.y;
                 if (!(this.node.hasPixel && this.node.hasPixel(tx, ty))) {
-                    this._addPixelIfMissing(tx, ty);
-                    added = true;
-                    break;
+                    if (this._addPixelIfMissing(tx, ty)) {
+                        added = true;
+                        // Check for merge with other nodes
+                        this._checkForMerge(tx, ty);
+                        break;
+                    }
                 }
             }
         }
@@ -320,7 +402,7 @@ export class NodeGrowthManager {
     }
 
         // Build a short integer-stepped path (Bresenham-like) from startPixel toward (relX, relY)
-        const maxSteps = 6; // cap path length per growth action
+        const maxSteps = 6; // Cap path length per growth action to prevent excessive computation
         const path = [];
         let sx = startPixel.dx, sy = startPixel.dy;
         for (let step = 0; step < maxSteps; step++) {
@@ -384,10 +466,7 @@ export class NodeGrowthManager {
                     const tmp = edgeCandidates[a]; edgeCandidates[a] = edgeCandidates[j]; edgeCandidates[j] = tmp;
                 }
 
-                const tryOffsets = [
-                    { x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 },
-                    { x: 1, y: 1 }, { x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }
-                ];
+                const tryOffsets = CONSTANTS.NEIGHBOR_OFFSETS.map(([x, y]) => ({ x, y }));
 
                 let added = false;
                 const maxAttempts = Math.min(6, edgeCandidates.length);
@@ -414,9 +493,12 @@ export class NodeGrowthManager {
                         const ty = candidate.dy + norm.y + o.y;
                         if (!(this.node.hasPixel && this.node.hasPixel(tx, ty))) {
                             if (this._dbg()) console.log('growTowardWorldPoint fallback add', tx, ty, 'from candidate', candidate, 'target', relX, relY);
-                            this._addPixelIfMissing(tx, ty);
-                            added = true;
-                            break;
+                            if (this._addPixelIfMissing(tx, ty)) {
+                                added = true;
+                                // Check for merge with other nodes
+                                this._checkForMerge(tx, ty);
+                                break;
+                            }
                         }
                     }
                 }
@@ -427,7 +509,10 @@ export class NodeGrowthManager {
         // Apply path as a batch: add pixels and thickness and branching around each step
         const thickness = (this.node.simulation && this.node.simulation.CONFIG.NODE.GROWTH_THICKNESS) || 1;
         for (const newPixel of path) {
-            this._addPixelIfMissing(newPixel.dx, newPixel.dy);
+            if (this._addPixelIfMissing(newPixel.dx, newPixel.dy)) {
+                // Check for merge after adding each path pixel
+                this._checkForMerge(newPixel.dx, newPixel.dy);
+            }
             for (let t = 1; t <= thickness; t++) {
                 this._addPixelIfMissing(newPixel.dx + t, newPixel.dy);
                 this._addPixelIfMissing(newPixel.dx - t, newPixel.dy);
@@ -449,7 +534,9 @@ export class NodeGrowthManager {
                 const branchCandidates = neighbors.filter(nb => !this.node.hasPixel(nb.x, nb.y));
                     if (branchCandidates.length > 0) {
                         const b = branchCandidates[Math.floor(Math.random() * branchCandidates.length)];
-                        this._addPixelIfMissing(b.x, b.y);
+                        if (this._addPixelIfMissing(b.x, b.y)) {
+                            this._checkForMerge(b.x, b.y);
+                        }
                     }
             }
 
@@ -467,37 +554,8 @@ export class NodeGrowthManager {
                         { x: src.dx + 1, y: src.dy + 1 }, { x: src.dx - 1, y: src.dy - 1 }
                     ];
                     const picked = cand[Math.floor(Math.random() * cand.length)];
-                    this._addPixelIfMissing(picked.x, picked.y);
-                }
-            }
-        }
-
-        // After adding, check for immediate merge: if the new pixel lies on another node, merge
-        // After adding, check for immediate merge: require >=2 adjacent contact pixels to trigger merge
-        if (this.node.simulation) {
-            // count adjacent pixels belonging to other nodes around the endpoint of the path
-            const endpoints = path.length > 0 ? [path[path.length-1]] : [];
-            for (const ep of endpoints) {
-                const worldX = this.node.x + ep.dx;
-                const worldY = this.node.y + ep.dy;
-                const candidates = this.node.simulation.nodeGrid.queryBox({ minX: worldX-1, minY: worldY-1, maxX: worldX+1, maxY: worldY+1 });
-                for (const other of candidates) {
-                    if (other === this.node) continue;
-                    // count contacting pixels between this node and other within a 3x3 neighborhood
-                    let contactCount = 0;
-                    for (let oy = -1; oy <= 1; oy++) {
-                        for (let ox = -1; ox <= 1; ox++) {
-                            const nx = worldX + ox;
-                            const ny = worldY + oy;
-                            // check if other has a pixel at nx,ny
-                            const relX = nx - other.x;
-                            const relY = ny - other.y;
-                            if (other.hasPixel && other.hasPixel(relX, relY)) contactCount++;
-                        }
-                    }
-                    if (contactCount >= 2) {
-                        this.node.simulation.mergeNodes(this.node, other);
-                        return;
+                    if (this._addPixelIfMissing(picked.x, picked.y)) {
+                        this._checkForMerge(picked.x, picked.y);
                     }
                 }
             }
@@ -519,15 +577,71 @@ export class NodeGrowthManager {
         return best;
     }
 
+    /**
+     * Check if a newly added pixel should trigger a merge with another node
+     * 
+     * @param {number} dx - Relative X coordinate of the pixel
+     * @param {number} dy - Relative Y coordinate of the pixel
+     * @returns {boolean} True if a merge was triggered
+     */
+    _checkForMerge(dx, dy) {
+        if (!this.node.simulation) return false;
+        
+        const worldX = this.node.x + dx;
+        const worldY = this.node.y + dy;
+        
+        // Query nearby nodes using spatial grid
+        const candidates = this.node.simulation.nodeGrid.queryBox({ 
+            minX: worldX - 1, 
+            minY: worldY - 1, 
+            maxX: worldX + 1, 
+            maxY: worldY + 1 
+        });
+        
+        for (const other of candidates) {
+            if (other === this.node) continue;
+            
+            // Count contacting pixels between this node and other within a 3x3 neighborhood
+            let contactCount = 0;
+            for (let oy = -1; oy <= 1; oy++) {
+                for (let ox = -1; ox <= 1; ox++) {
+                    const nx = worldX + ox;
+                    const ny = worldY + oy;
+                    
+                    // Check if other has a pixel at this location
+                    const relX = nx - other.x;
+                    const relY = ny - other.y;
+                    if (other.hasPixel && other.hasPixel(relX, relY)) {
+                        contactCount++;
+                    }
+                }
+            }
+            
+            // Trigger merge if contact threshold is reached
+            if (contactCount >= CONSTANTS.MERGE_CONTACT_THRESHOLD) {
+                this.node.simulation.mergeNodes(this.node, other);
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
     _addPixelIfMissing(dx, dy) {
         if (this.node && typeof this.node.addPixel === 'function') {
-            try { if (this.node && this.node.simulation && this.node.simulation.CONFIG && this.node.simulation.CONFIG.DEBUG_GROWTH_LOG) console.log('Attempt addPixel', this.node.x, this.node.y, dx, dy); } catch (e) {}
+            try { 
+                if (this.node?.simulation?.CONFIG?.DEBUG_GROWTH_LOG) {
+                    console.log('Attempt addPixel', this.node.x, this.node.y, dx, dy);
+                }
+            } catch (e) {}
             return this.node.addPixel(dx, dy);
         }
         const exists = this.node.pixels.some(p => p.dx === dx && p.dy === dy);
         if (!exists) this.node.pixels.push({ dx, dy });
         // Mark renderer dirty so caches can be rebuilt
-        if (this.node && typeof this.node.markRendererDirty === 'function') this.node.markRendererDirty();
+        if (this.node && typeof this.node.markRendererDirty === 'function') {
+            this.node.markRendererDirty();
+        }
         return true;
     }
 
@@ -639,8 +753,11 @@ export class NodeGrowthManager {
             };
             // Check if this pixel already exists and add via node helper
             if (!this.node.hasPixel(supportPixel.dx, supportPixel.dy)) {
-                this.node.addPixel(supportPixel.dx, supportPixel.dy);
-                supportAdded++;
+                if (this.node.addPixel(supportPixel.dx, supportPixel.dy)) {
+                    supportAdded++;
+                    // Check for merge after adding support pixel
+                    this._checkForMerge(supportPixel.dx, supportPixel.dy);
+                }
             }
         }
     }

@@ -1,3 +1,5 @@
+import { CONSTANTS } from './constants.js';
+
 /**
  * Simulation Renderer
  * Handles all rendering operations and visual effects
@@ -23,8 +25,9 @@ export class SimulationRenderer {
         const now = performance.now();
         const deltaTime = now - this.lastRenderTime;
         
-        // Limit to ~60 FPS
-        if (deltaTime < 16) {
+        // Limit to target FPS
+        const minFrameTime = CONSTANTS.MILLISECONDS_PER_SECOND / CONSTANTS.FRAME_RATE;
+        if (deltaTime < minFrameTime) {
             return;
         }
         
@@ -71,6 +74,11 @@ export class SimulationRenderer {
     renderFull() {
         this.ctx.fillStyle = this.simulation.CONFIG.MAP.BACKGROUND_COLOR;
         this.ctx.fillRect(0, 0, this.simulation.CONFIG.MAP.WIDTH, this.simulation.CONFIG.MAP.HEIGHT);
+        
+        // Render terrain contour lines (before trails and entities)
+        if (this.simulation.terrainMap) {
+            this.simulation.terrainMap.render(this.ctx);
+        }
         
         this.simulation.trailSystem.render(this.ctx);
         
@@ -242,14 +250,16 @@ export class SimulationRenderer {
         const now = performance.now();
         const elapsed = now - this.lastFpsUpdate;
         
-        if (elapsed >= 1000) {
+        if (elapsed >= CONSTANTS.FPS_UPDATE_INTERVAL) {
             this.fps = Math.round((this.fpsFrameCount * 1000) / elapsed);
             this.fpsFrameCount = 0;
             this.lastFpsUpdate = now;
             
             // Update average FPS
             this.avgFpsHistory.push(this.fps);
-            if (this.avgFpsHistory.length > 10) this.avgFpsHistory.shift();
+            if (this.avgFpsHistory.length > CONSTANTS.FPS_HISTORY_SIZE) {
+                this.avgFpsHistory.shift();
+            }
             this.avgFps = Math.round(this.avgFpsHistory.reduce((a, b) => a + b, 0) / this.avgFpsHistory.length);
             
             this.updateFPSDisplay();

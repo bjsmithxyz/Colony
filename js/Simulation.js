@@ -1,4 +1,5 @@
 import { CONFIG } from './config.js';
+import { CONSTANTS } from './constants.js';
 import { Node } from './Node.js';
 import { Individual } from './Individual.js';
 import { FoodSource } from './FoodSource.js';
@@ -9,6 +10,7 @@ import { DirtyRectManager } from './DirtyRectManager.js';
 import { SimulationEventHandler } from './SimulationEventHandler.js';
 import { SimulationRenderer } from './SimulationRenderer.js';
 import { PerformanceMonitor } from './PerformanceMonitor.js';
+import { TerrainMap } from './TerrainMap.js';
 
 /**
  * Main Simulation class - modular and focused architecture
@@ -63,6 +65,9 @@ export class Simulation {
     /**
      * Called by Node.storeFood when food is added to a node.
      * Updates the shared pool total and checks milestone for dropper spawning.
+     * 
+     * @param {Node} node - The node that received food
+     * @param {number} amount - The amount of food added
      */
     checkFoodMilestone(node, amount) {
         // Update shared pool total
@@ -112,10 +117,17 @@ export class Simulation {
     initializeSystemsAndManagers() {
         // Core systems
         this.trailSystem = new TrailSystem(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT);
-        this.spatialGrid = new SpatialGrid(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 32);
+        this.spatialGrid = new SpatialGrid(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, CONSTANTS.DEFAULT_CELL_SIZE);
         // Separate grid for nodes where we insert node bounding boxes for faster pixel collision checks
-        this.nodeGrid = new SpatialGrid(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 64);
-        this.dirtyRectManager = new DirtyRectManager(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, 64);
+        this.nodeGrid = new SpatialGrid(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, CONSTANTS.NODE_GRID_CELL_SIZE);
+        this.dirtyRectManager = new DirtyRectManager(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, CONSTANTS.DIRTY_RECT_CELL_SIZE);
+        
+        // Terrain system
+        if (CONFIG.TERRAIN && CONFIG.TERRAIN.ENABLED) {
+            this.terrainMap = new TerrainMap(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, CONFIG.TERRAIN);
+        } else {
+            this.terrainMap = null;
+        }
         
         // Object pooling
         this.individualPool = new ObjectPool(
@@ -167,13 +179,13 @@ export class Simulation {
         this.trailSystem.update();
         
         // Update statistics periodically
-        if (this.frameCount % 30 === 0) {
+        if (this.frameCount % CONSTANTS.STATS_UPDATE_INTERVAL === 0) {
             this.updateStats();
         }
 
         // Memory management - trim object pools occasionally to prevent unbounded growth
-        if (this.frameCount % 1800 === 0) { // Every 30 seconds at 60fps
-            this.individualPool.trimPool(20);
+        if (this.frameCount % CONSTANTS.POOL_TRIM_INTERVAL === 0) {
+            this.individualPool.trimPool(CONSTANTS.POOL_TRIM_TARGET);
         }
     }
 
@@ -270,7 +282,15 @@ export class Simulation {
         this.renderer.render();
     }
 
-    // Entity management
+    /**
+     * Add a new node to the simulation
+     * 
+     * @param {number} x - X coordinate for the node
+     * @param {number} y - Y coordinate for the node
+     * @param {Object} opts - Optional parameters
+     * @param {boolean} opts.createInitialIndividual - Whether to create an initial individual
+     * @returns {Node|null} The created node or null if max nodes reached
+     */
     addNode(x, y, opts = {}) {
         if (this.nodes.length >= CONFIG.NODE.MAX_NODES) {
             console.warn('Maximum nodes reached:', CONFIG.NODE.MAX_NODES);
@@ -308,26 +328,40 @@ export class Simulation {
             return node;
         } catch (error) {
             console.error('Error adding node:', error);
+            return null;
         }
     }
 
     /**
      * Merge two nodes: larger node survives and absorbs smaller node's pixels, food, and individuals.
      * Removes the smaller node from simulation.nodes and updates stats/UI.
+     * 
+     * @param {Node} nodeA - First node to merge
+     * @param {Node} nodeB - Second node to merge
      */
     mergeNodes(nodeA, nodeB) {
         try {
             if (!nodeA || !nodeB || nodeA === nodeB) return;
 
-            // Determine sizes by pixel count
-            const sizeA = nodeA.pixels.length || 0;
-            const sizeB = nodeB.pixels.length || 0;
-
+            // Determine survivor: prefer node with more active individuals
+            // If tied, use pixel count as tiebreaker
+            const individualsA = nodeA.individuals?.filter(ind => !ind.isDead).length || 0;
+            const individualsB = nodeB.individuals?.filter(ind => !ind.isDead).length || 0;
+            
             let survivor = nodeA;
             let absorbed = nodeB;
-            if (sizeB > sizeA) {
+            
+            if (individualsB > individualsA) {
                 survivor = nodeB;
                 absorbed = nodeA;
+            } else if (individualsB === individualsA) {
+                // Tiebreaker: use pixel count
+                const sizeA = nodeA.pixels.length || 0;
+                const sizeB = nodeB.pixels.length || 0;
+                if (sizeB > sizeA) {
+                    survivor = nodeB;
+                    absorbed = nodeA;
+                }
             }
 
             // Transfer pixels (avoid duplicates)
@@ -352,6 +386,27 @@ export class Simulation {
                 survivor.individuals.push(ind);
             }
 
+            // Merge depot locations - add absorbed node's center as a new depot
+            // Check if absorbed node's center is significantly different from existing depots
+            const absorbedCenter = { x: absorbed.x, y: absorbed.y };
+            const minDepotDistance = CONSTANTS.MIN_DEPOT_DISTANCE;
+            
+            let isNewDepot = true;
+            for (const depot of survivor.depotLocations) {
+                const dist = Math.sqrt(
+                    Math.pow(depot.x - absorbedCenter.x, 2) + 
+                    Math.pow(depot.y - absorbedCenter.y, 2)
+                );
+                if (dist < minDepotDistance) {
+                    isNewDepot = false;
+                    break;
+                }
+            }
+            
+            if (isNewDepot) {
+                survivor.depotLocations.push(absorbedCenter);
+            }
+
             // Remove absorbed node from simulation list
             const idx = this.nodes.indexOf(absorbed);
             if (idx > -1) {
@@ -366,6 +421,7 @@ export class Simulation {
             this.updateStats();
         } catch (e) {
             console.error('Error merging nodes:', e);
+            // Continue execution - merge failure shouldn't crash simulation
         }
     }
 
@@ -379,7 +435,13 @@ export class Simulation {
         }
     }
 
-    // Utility methods
+    /**
+     * Get the node at the specified coordinates
+     * 
+     * @param {number} x - X coordinate
+     * @param {number} y - Y coordinate
+     * @returns {Node|undefined} The node at the coordinates, or undefined if none found
+     */
     getNodeAt(x, y) {
         // Query nodeGrid first to reduce candidate nodes
         try {
@@ -402,21 +464,39 @@ export class Simulation {
         return undefined;
     }
     
+    /**
+     * Find entities near the specified coordinates
+     * 
+     * @param {number} x - X coordinate
+     * @param {number} y - Y coordinate
+     * @param {number} radius - Search radius
+     * @returns {Array} Array of nearby entities
+     */
     findNearbyEntities(x, y, radius) {
         const results = this.spatialGrid.queryRadius(x, y, radius);
         return results.map(result => result.entity);
     }
 
+    /**
+     * Select a target node for UI display
+     * 
+     * @param {Node} target - The node to select
+     */
     selectTarget(target) {
         this.selectedTarget = target;
         this.updateModuleUI();
     }
 
+    /**
+     * Toggle the simulation pause state
+     */
     togglePause() {
         this.isPaused = !this.isPaused;
     }
 
-    // UI update methods
+    /**
+     * Update UI statistics display
+     */
     updateStats() {
         // Update simplified overview stats (floating top-right)
         const ovNode = document.getElementById('ov_nodeCount');
@@ -442,6 +522,11 @@ export class Simulation {
         // No-op: module system removed
     }
 
+    /**
+     * Reset the simulation to initial state
+     * 
+     * @param {boolean} skipConfirm - Whether to skip confirmation dialog
+     */
     resetSimulation(skipConfirm = false) {
         // Show modal if confirmation needed, otherwise proceed directly
         if (!skipConfirm) {
@@ -488,7 +573,9 @@ export class Simulation {
         return null;
     }
 
-    // Main game loop
+    /**
+     * Start the simulation game loop
+     */
     start() {
         const gameLoop = () => {
             this.update();

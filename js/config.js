@@ -37,8 +37,8 @@ const PRESETS = {
 
 export const CONFIG = {
     MAP: {
-        WIDTH: 1000,
-        HEIGHT: 1000,
+        WIDTH: 500,                        // Reduced for performance testing
+        HEIGHT: 500,                       // Reduced for performance testing
         BACKGROUND_COLOR: '#1a1a1a'
     },
     NODE: {
@@ -91,6 +91,18 @@ export const CONFIG = {
         FPS: 60,
         DROPPER_MILESTONE_INTERVAL: 150,    // Food collected milestone interval for dropper spawning
         INITIAL_IMMUNITY_ENABLED: true      // First individual is immune until finding food
+    },
+    TERRAIN: {
+        ENABLED: true,                      // Enable topographic terrain system
+        NOISE_SCALE: 0.01,                   // Scale of noise for terrain generation (lower = smoother)
+        OCTAVES: 3,                          // Number of noise octaves for detail
+        PERSISTENCE: 0.5,                    // Persistence between octaves
+        CONTOUR_ENABLED: true,               // Render contour lines
+        CONTOUR_INTERVAL: 20,                // Height interval between contour lines (0-255)
+        CONTOUR_COLOR: 'rgba(100, 100, 100, 0.3)', // Color of contour lines
+        CONTOUR_LINE_WIDTH: 1,               // Width of contour lines
+        ENERGY_MULTIPLIER: 2.0,              // Maximum energy cost multiplier for steep terrain
+        GROWTH_COST_MULTIPLIER: 1.5          // Maximum growth cost multiplier for steep terrain
     }
 };
 

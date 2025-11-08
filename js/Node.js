@@ -1,5 +1,6 @@
 import { CONFIG } from './config.js';
 import { logger } from './logger.js';
+import { CONSTANTS } from './constants.js';
 import { NodeGrowthManager } from './NodeGrowthManager.js';
 import { NodeRenderer } from './NodeRenderer.js';
 import { NodeShapeGenerator } from './NodeShapeGenerator.js';
@@ -21,6 +22,9 @@ export class Node {
         this.lastFoodAmount = 0;
         this.lastSpawnTime = 0;             // Timestamp (ms) of last automatic spawn (kept for compatibility)
         this.spawnCooldown = CONFIG.NODE.SPAWN_COOLDOWN || 5000; // Cooldown in milliseconds between spawns
+        
+        // Multiple deposit locations (depots) - starts with node center, expands on merge
+        this.depotLocations = [{ x: x, y: y }];
         
         // Initialize pixel array for organic shape
         this.pixels = [];
@@ -84,6 +88,20 @@ export class Node {
     }
 
     addPixel(dx, dy) {
+        // Check canvas boundaries before adding pixel
+        const worldX = this.x + dx;
+        const worldY = this.y + dy;
+        
+        if (this.simulation && this.simulation.CONFIG) {
+            const mapWidth = this.simulation.CONFIG.MAP.WIDTH;
+            const mapHeight = this.simulation.CONFIG.MAP.HEIGHT;
+            
+            // Reject pixels outside canvas bounds
+            if (worldX < 0 || worldX >= mapWidth || worldY < 0 || worldY >= mapHeight) {
+                return false;
+            }
+        }
+        
         const key = `${dx},${dy}`;
         if (this.pixelSet.has(key)) return false;
         this.pixelSet.add(key);

@@ -1,3 +1,5 @@
+import { CONSTANTS } from './constants.js';
+
 /**
  * Individual AI Behavior System
  * Handles decision making, pathfinding, and behavioral logic
@@ -47,9 +49,9 @@ export class IndividualAI {
             Math.pow(this.individual.y - this.lastPosition.y, 2)
         );
         
-        if (distanceMoved < 0.1) {
+        if (distanceMoved < CONSTANTS.STUCK_THRESHOLD) {
             this.stuckCounter++;
-            if (this.stuckCounter > 30) { // Stuck for 30 frames
+            if (this.stuckCounter > CONSTANTS.STUCK_FRAME_COUNT) {
                 this.direction = Math.random() * Math.PI * 2;
                 this.stuckCounter = 0;
             }
@@ -58,6 +60,11 @@ export class IndividualAI {
         }
     }
 
+    /**
+     * Handle searching state - look for food and apply behaviors
+     * 
+     * @param {Simulation} simulation - The simulation instance
+     */
     handleSearching(simulation) {
         // Look for food sources
         const nearbyFood = this.scanForFood(simulation);
@@ -92,6 +99,11 @@ export class IndividualAI {
         }
     }
 
+    /**
+     * Handle targeting state - move toward food source
+     * 
+     * @param {Simulation} simulation - The simulation instance
+     */
     handleTargeting(simulation) {
         if (!this.targetFood || this.targetFood.amount <= 0) {
             this.state = 'SEARCHING';
@@ -128,27 +140,47 @@ export class IndividualAI {
         }
     }
 
+    /**
+     * Handle returning state - return to node to deposit food
+     * 
+     * @param {Simulation} simulation - The simulation instance
+     */
     handleReturning(simulation) {
-        const distance = this.getDistanceToTarget(this.individual.parentNode);
+        // Find nearest depot location (node center or merged node locations)
+        const node = this.individual.parentNode;
+        let nearestDepot = node.depotLocations[0]; // Default to first depot
+        let nearestDistance = Infinity;
         
-        if (distance < 3) {
+        // Find closest depot location
+        for (const depot of node.depotLocations) {
+            const dist = Math.sqrt(
+                Math.pow(depot.x - this.individual.x, 2) + 
+                Math.pow(depot.y - this.individual.y, 2)
+            );
+            if (dist < nearestDistance) {
+                nearestDistance = dist;
+                nearestDepot = depot;
+            }
+        }
+        
+        if (nearestDistance < 3) {
             // Close enough to deposit food — use Node.storeFood so spawn logic and growth run
             const amount = this.individual.carrying;
             if (amount > 0) {
                 // Deposit at the closest pixel on the node (allows depositing onto dendrites)
-                let depositX = Math.max(0, Math.min(this.individual.parentNode.simulation.CONFIG.MAP.WIDTH - 1, Math.round(this.individual.x)) );
-                let depositY = Math.max(0, Math.min(this.individual.parentNode.simulation.CONFIG.MAP.HEIGHT - 1, Math.round(this.individual.y)) );
+                let depositX = Math.max(0, Math.min(node.simulation.CONFIG.MAP.WIDTH - 1, Math.round(this.individual.x)));
+                let depositY = Math.max(0, Math.min(node.simulation.CONFIG.MAP.HEIGHT - 1, Math.round(this.individual.y)));
                 try {
-                    const closest = this.individual.parentNode.getClosestPixelTo(this.individual.x, this.individual.y);
+                    const closest = node.getClosestPixelTo(this.individual.x, this.individual.y);
                     if (closest && typeof closest.x === 'number' && typeof closest.y === 'number') {
-                        depositX = Math.max(0, Math.min(this.individual.parentNode.simulation.CONFIG.MAP.WIDTH - 1, Math.round(closest.x)));
-                        depositY = Math.max(0, Math.min(this.individual.parentNode.simulation.CONFIG.MAP.HEIGHT - 1, Math.round(closest.y)));
+                        depositX = Math.max(0, Math.min(node.simulation.CONFIG.MAP.WIDTH - 1, Math.round(closest.x)));
+                        depositY = Math.max(0, Math.min(node.simulation.CONFIG.MAP.HEIGHT - 1, Math.round(closest.y)));
                     }
                 } catch (e) {
                     // fallback to individual's location
                 }
 
-                this.individual.parentNode.storeFood(amount, null, { x: depositX, y: depositY });
+                node.storeFood(amount, null, { x: depositX, y: depositY });
                 this.individual.carrying = 0;
             }
             
@@ -161,10 +193,17 @@ export class IndividualAI {
                 this.targetFood = null;
             }
         } else {
-            this.setDirectionToTarget(this.individual.parentNode);
+            // Move toward nearest depot
+            this.setDirectionToTarget(nearestDepot);
         }
     }
 
+    /**
+     * Scan for nearby food sources
+     * 
+     * @param {Simulation} simulation - The simulation instance
+     * @returns {FoodSource|null} The closest food source, or null if none found
+     */
     scanForFood(simulation) {
         const nearbyEntities = simulation.findNearbyEntities(
             this.individual.x, 
@@ -271,6 +310,8 @@ export class IndividualAI {
 
     /**
      * Dropper behavior: purely random wandering, no food interactions, no clustering or communication.
+     * 
+     * @param {Simulation} simulation - The simulation instance
      */
     handleDropper(simulation) {
         // Simple random walk with occasional direction changes
@@ -285,10 +326,21 @@ export class IndividualAI {
         }
     }
 
+    /**
+     * Set movement direction toward target
+     * 
+     * @param {Object} target - Target object with x and y properties
+     */
     setDirectionToTarget(target) {
         this.direction = Math.atan2(target.y - this.individual.y, target.x - this.individual.x);
     }
 
+    /**
+     * Calculate distance to target
+     * 
+     * @param {Object} target - Target object with x and y properties
+     * @returns {number} Distance to target
+     */
     getDistanceToTarget(target) {
         return Math.sqrt(
             Math.pow(target.x - this.individual.x, 2) + 
@@ -300,12 +352,27 @@ export class IndividualAI {
         const dx = Math.cos(this.direction) * this.individual.speed;
         const dy = Math.sin(this.direction) * this.individual.speed;
         
+        // Calculate terrain movement cost if terrain is enabled
+        let terrainCost = 1.0;
+        if (this.individual.simulation && this.individual.simulation.terrainMap) {
+            terrainCost = this.individual.simulation.terrainMap.getMovementCost(
+                this.individual.x,
+                this.individual.y,
+                dx,
+                dy
+            );
+        }
+        
+        // Apply movement
         this.individual.x += dx;
         this.individual.y += dy;
         
         // Boundary checking
         this.individual.x = Math.max(0, Math.min(this.individual.x, this.individual.simulation?.CONFIG?.MAP?.WIDTH || 1024));
         this.individual.y = Math.max(0, Math.min(this.individual.y, this.individual.simulation?.CONFIG?.MAP?.HEIGHT || 1024));
+        
+        // Store terrain cost for energy calculation
+        this.individual._terrainCost = terrainCost;
     }
 
     updateLastPosition() {
