@@ -8,14 +8,11 @@ export function addPixelIfMissing(manager, dx, dy) {
                 console.log('Attempt addPixel', node.x, node.y, dx, dy);
             }
         } catch (e) {}
-        return node.addPixel(dx, dy);
+        return node.addPixel(dx, dy, { deferMaintenance: true });
     }
 
     const exists = node.pixels.some(p => p.dx === dx && p.dy === dy);
     if (!exists) node.pixels.push({ dx, dy });
-    if (node && typeof node.markRendererDirty === 'function') {
-        node.markRendererDirty();
-    }
     return true;
 }
 

@@ -121,6 +121,7 @@ export class PerformanceMonitor {
     }
 
     shouldLogPerformance() {
+        if (!this.simulation.CONFIG?.DEBUG?.performance) return false;
         const now = performance.now();
         if (now - this.performanceMetrics.lastPerformanceLog > 5000) {
             this.logPerformanceMetrics();

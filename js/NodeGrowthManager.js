@@ -133,6 +133,9 @@ export class NodeGrowthManager {
         }
 
         this._processContinuousGrowth(cfg, actionsPerFrame);
+        if (typeof this.node.finalizePixelMaintenance === 'function') {
+            this.node.finalizePixelMaintenance();
+        }
     }
 
     _processContinuousGrowth(cfg, actionsPerFrame) {

@@ -87,9 +87,11 @@ export class Node {
         return this.pixelSet.has(`${dx},${dy}`);
     }
 
-    addPixel(dx, dy) {
+    addPixel(dx, dy, options = {}) {
         const maxPixels = this.simulation?.CONFIG?.NODE?.MAX_PIXELS ?? CONSTANTS.DEFAULT_MAX_PIXELS_PER_NODE;
         if (this.pixels.length >= maxPixels) return false;
+
+        const deferMaintenance = options.deferMaintenance === true;
 
         // Check canvas boundaries before adding pixel
         const worldX = this.x + dx;
@@ -127,45 +129,98 @@ export class Node {
                 logger.debug('growth', 'Node.addPixel', this.x, this.y, dx, dy, 'total', this.pixels.length);
             }
         } catch (e) {}
-        // update edgePixels: new pixel may create new frontier entries around it
+
+        if (!deferMaintenance) {
+            this._updateEdgePixelsFor(dx, dy);
+            this.markRendererDirty();
+            if (this.simulation?.isPaused && this.simulation.dirtyRectManager) {
+                this.simulation.dirtyRectManager.markDirty(worldX, worldY, 1, 1);
+            }
+        } else {
+            this._pixelMaintenancePending = true;
+        }
+        
+        return true;
+    }
+
+    /** Batch edge recompute and renderer invalidation after deferred growth pixels. */
+    finalizePixelMaintenance() {
+        if (!this._pixelMaintenancePending) return;
+        this._pixelMaintenancePending = false;
+        this._recomputeEdgePixels();
+        this.markRendererDirty();
+    }
+
+    /** Fast bulk pixel transfer used during node merges. */
+    absorbPixelsFrom(other) {
+        if (!other?.pixels?.length) return 0;
+        const maxPixels = this.simulation?.CONFIG?.NODE?.MAX_PIXELS ?? CONSTANTS.DEFAULT_MAX_PIXELS_PER_NODE;
+        const offsetX = other.x - this.x;
+        const offsetY = other.y - this.y;
+        let transferred = 0;
+
+        for (const p of other.pixels) {
+            if (this.pixels.length >= maxPixels) break;
+            const dx = p.dx + offsetX;
+            const dy = p.dy + offsetY;
+            const key = `${dx},${dy}`;
+            if (this.pixelSet.has(key)) continue;
+
+            const worldX = this.x + dx;
+            const worldY = this.y + dy;
+            if (this.simulation?.CONFIG) {
+                const mapWidth = this.simulation.CONFIG.MAP.WIDTH;
+                const mapHeight = this.simulation.CONFIG.MAP.HEIGHT;
+                if (worldX < 0 || worldX >= mapWidth || worldY < 0 || worldY >= mapHeight) continue;
+            }
+
+            this.pixelSet.add(key);
+            this.pixels.push({ dx, dy });
+            if (this.pixels.length === 1) {
+                this.bounds.minX = dx;
+                this.bounds.maxX = dx;
+                this.bounds.minY = dy;
+                this.bounds.maxY = dy;
+            } else {
+                if (dx < this.bounds.minX) this.bounds.minX = dx;
+                if (dx > this.bounds.maxX) this.bounds.maxX = dx;
+                if (dy < this.bounds.minY) this.bounds.minY = dy;
+                if (dy > this.bounds.maxY) this.bounds.maxY = dy;
+            }
+            transferred++;
+        }
+
+        if (transferred > 0) {
+            this._recomputeEdgePixels();
+            this.markRendererDirty();
+        }
+        return transferred;
+    }
+
+    _updateEdgePixelsFor(dx, dy) {
         const neigh = CONSTANTS.NEIGHBOR_OFFSETS;
+        const key = `${dx},${dy}`;
         let isEdge = false;
         for (const [ox, oy] of neigh) {
-            const neighborKey = `${dx+ox},${dy+oy}`;
+            const neighborKey = `${dx + ox},${dy + oy}`;
             if (!this.pixelSet.has(neighborKey)) {
                 isEdge = true;
             } else {
-                // Neighbor exists: ensure it's marked as an edge candidate
                 this.edgePixels.add(neighborKey);
             }
         }
         if (isEdge) this.edgePixels.add(key);
-        // newly filled pixel might remove edge status from neighbors
         for (const [ox, oy] of neigh) {
-            const nk = `${dx+ox},${dy+oy}`;
+            const nk = `${dx + ox},${dy + oy}`;
             if (this.pixelSet.has(nk)) {
-                // check if neighbor still has any empty neighbor; if not remove from edgePixels
                 let stillEdge = false;
                 for (const [ax, ay] of neigh) {
-                    const ck = `${dx+ox+ax},${dy+oy+ay}`;
+                    const ck = `${dx + ox + ax},${dy + oy + ay}`;
                     if (!this.pixelSet.has(ck)) { stillEdge = true; break; }
                 }
                 if (!stillEdge) this.edgePixels.delete(nk);
             }
         }
-        this.markRendererDirty();
-        
-        // Mark dirty rect for rendering optimization
-        if (this.simulation && this.simulation.dirtyRectManager) {
-            const bounds = this.getBounds();
-            const worldX = this.x + bounds.minX;
-            const worldY = this.y + bounds.minY;
-            const worldWidth = bounds.maxX - bounds.minX + 1;
-            const worldHeight = bounds.maxY - bounds.minY + 1;
-            this.simulation.dirtyRectManager.markDirty(worldX, worldY, worldWidth, worldHeight);
-        }
-        
-        return true;
     }
 
     _recomputeEdgePixels() {
@@ -201,6 +256,8 @@ export class Node {
     // Check cooldown and food cost
     const now = Date.now();
     if (!this.simulation) return false;
+    const maxIndividuals = this.simulation.CONFIG?.SIMULATION?.MAX_INDIVIDUALS ?? CONSTANTS.MAX_INDIVIDUALS;
+    if (this.simulation.individuals.length >= maxIndividuals) return false;
     const spawnCost = (this.simulation.CONFIG && this.simulation.CONFIG.NODE && this.simulation.CONFIG.NODE.SPAWN_COST) || 10;
     if (this.simulation.CONFIG && this.simulation.CONFIG.DEBUG && this.simulation.CONFIG.DEBUG.spawn) logger.debug('spawn','[spawn] attempt',{ node: [this.x, this.y], now, lastSpawnTime: this.lastSpawnTime, food: this.food });
     if (now - this.lastSpawnTime < this.spawnCooldown) {

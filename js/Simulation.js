@@ -156,6 +156,11 @@ export class Simulation {
         for (let u = 0; u < updates; u++) {
             this.performUpdate();
         }
+
+        // Fade trails once per animation frame, not per simulation sub-step
+        if (updates > 0) {
+            this.trailSystem.update();
+        }
         
         this.performanceMonitor.updateMetric('updateTime', performance.now() - updateStart);
         this.performanceMonitor.shouldLogPerformance();
@@ -172,9 +177,6 @@ export class Simulation {
         this.updateNodes();
         this.updateIndividuals();
         
-        // Update systems
-        this.trailSystem.update();
-        
         // Update statistics periodically
         if (this.frameCount % CONSTANTS.STATS_UPDATE_INTERVAL === 0) {
             this.updateStats();
@@ -187,12 +189,7 @@ export class Simulation {
     }
 
     updateNodes() {
-        // Pre-populate grid so merge detection during growth sees other nodes
-        this.nodes.forEach(node => this._insertNodeIntoGrid(node));
-
         this.nodes.forEach(node => node.update());
-
-        // Refresh grid with post-growth bounds for hit testing
         this.nodeGrid.clear();
         this.nodes.forEach(node => this._insertNodeIntoGrid(node));
     }
@@ -367,15 +364,16 @@ export class Simulation {
                 }
             }
 
-            // Transfer pixels (avoid duplicates)
-            for (const p of absorbed.pixels) {
-                const rebasedX = p.dx + (absorbed.x - survivor.x);
-                const rebasedY = p.dy + (absorbed.y - survivor.y);
-                if (survivor && typeof survivor.hasPixel === 'function') {
-                    if (!survivor.hasPixel(rebasedX, rebasedY)) survivor.addPixel(rebasedX, rebasedY);
-                } else {
-                    const exists = survivor.pixels.some(sp => sp.dx === rebasedX && sp.dy === rebasedY);
-                    if (!exists) survivor.pixels.push({ dx: rebasedX, dy: rebasedY });
+            // Bulk-transfer pixels without per-pixel maintenance overhead
+            if (typeof survivor.absorbPixelsFrom === 'function') {
+                survivor.absorbPixelsFrom(absorbed);
+            } else {
+                for (const p of absorbed.pixels) {
+                    const rebasedX = p.dx + (absorbed.x - survivor.x);
+                    const rebasedY = p.dy + (absorbed.y - survivor.y);
+                    if (!survivor.hasPixel(rebasedX, rebasedY)) {
+                        survivor.addPixel(rebasedX, rebasedY);
+                    }
                 }
             }
 

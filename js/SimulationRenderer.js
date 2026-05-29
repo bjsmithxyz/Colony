@@ -22,16 +22,8 @@ export class SimulationRenderer {
     }
 
     render() {
-        const now = performance.now();
-        const deltaTime = now - this.lastRenderTime;
-        
-        const minFrameTime = CONSTANTS.MILLISECONDS_PER_SECOND / CONSTANTS.FRAME_RATE;
-        if (deltaTime < minFrameTime) {
-            return;
-        }
-        
         const renderStart = performance.now();
-        this.lastRenderTime = now;
+        this.lastRenderTime = renderStart;
         
         // Check if dirty rect optimization is enabled
         const dirtyRectEnabled = this.simulation.CONFIG &&

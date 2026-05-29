@@ -152,7 +152,7 @@ export function addSupportPixels(manager, direction, count) {
         };
 
         if (!node.hasPixel(supportPixel.dx, supportPixel.dy)) {
-            if (node.addPixel(supportPixel.dx, supportPixel.dy)) {
+            if (node.addPixel(supportPixel.dx, supportPixel.dy, { deferMaintenance: true })) {
                 supportAdded++;
                 checkForMerge(manager, supportPixel.dx, supportPixel.dy);
             }
