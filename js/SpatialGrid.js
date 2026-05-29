@@ -5,8 +5,7 @@ export class SpatialGrid {
         this.cellSize = cellSize;
         this.cols = Math.ceil(width / cellSize);
         this.rows = Math.ceil(height / cellSize);
-        this.grid = new Array(this.cols * this.rows);
-        this.clear();
+        this.grid = Array.from({ length: this.cols * this.rows }, () => []);
     }
 
     clear() {
