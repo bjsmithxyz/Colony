@@ -164,23 +164,12 @@ export class IndividualAI {
         }
         
         if (nearestDistance < 3) {
-            // Close enough to deposit food — use Node.storeFood so spawn logic and growth run
             const amount = this.individual.carrying;
             if (amount > 0) {
-                // Deposit at the closest pixel on the node (allows depositing onto dendrites)
-                let depositX = Math.max(0, Math.min(node.simulation.CONFIG.MAP.WIDTH - 1, Math.round(this.individual.x)));
-                let depositY = Math.max(0, Math.min(node.simulation.CONFIG.MAP.HEIGHT - 1, Math.round(this.individual.y)));
-                try {
-                    const closest = node.getClosestPixelTo(this.individual.x, this.individual.y);
-                    if (closest && typeof closest.x === 'number' && typeof closest.y === 'number') {
-                        depositX = Math.max(0, Math.min(node.simulation.CONFIG.MAP.WIDTH - 1, Math.round(closest.x)));
-                        depositY = Math.max(0, Math.min(node.simulation.CONFIG.MAP.HEIGHT - 1, Math.round(closest.y)));
-                    }
-                } catch (e) {
-                    // fallback to individual's location
-                }
-
-                node.storeFood(amount, null, { x: depositX, y: depositY });
+                node.storeFood(amount, null, {
+                    x: Math.round(nearestDepot.x),
+                    y: Math.round(nearestDepot.y)
+                });
                 this.individual.carrying = 0;
             }
             

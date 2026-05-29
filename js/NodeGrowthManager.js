@@ -42,6 +42,9 @@ export class NodeGrowthManager {
         if (amount <= 0) return;
 
         const cfgNode = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
+        const maxPixels = cfgNode?.MAX_PIXELS ?? CONSTANTS.DEFAULT_MAX_PIXELS_PER_NODE;
+        if (this.node.pixels.length >= maxPixels) return;
+
         const perPixel = (cfgNode && cfgNode.FOOD_PER_PIXEL) ? cfgNode.FOOD_PER_PIXEL : 1;
         const oldPixels = Math.floor(this.node.lastFoodAmount / perPixel);
         const newPixels = Math.floor(this.node.food / perPixel);
@@ -61,6 +64,8 @@ export class NodeGrowthManager {
         this._updateMaxQueueSize();
 
         if (depositLocation) {
+            const now = performance.now();
+            if (this._lastDepositEnqueue && now - this._lastDepositEnqueue < 80) return;
             if (this._growthQueue.length < this._maxQueueSize) {
                 const last = this._growthQueue[this._growthQueue.length - 1];
                 const sameTarget = last?.type === 'toward'
@@ -69,6 +74,7 @@ export class NodeGrowthManager {
                 if (!sameTarget) {
                     this._growthQueue.push({ type: 'toward', point: depositLocation });
                     this._reservedPixels++;
+                    this._lastDepositEnqueue = now;
                     if (this._dbg()) console.log('Enqueued toward growth', this.node.x, this.node.y, depositLocation);
                 }
             }

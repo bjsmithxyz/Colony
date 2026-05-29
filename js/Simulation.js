@@ -46,6 +46,7 @@ export class Simulation {
         // Player controls: allow one manual drop only (initially true)
         this.playerCanDropNodes = true;
         this._updateAccumulator = 0;
+        this._growthNodeIndex = 0;
         // Ensure cursor matches state
         this._updateCanvasCursor = () => {
             try {
@@ -193,6 +194,17 @@ export class Simulation {
 
     updateNodes() {
         this.nodes.forEach(node => node.update());
+
+        // Round-robin growth: tick a few nodes per frame instead of all at once
+        const ticksPerFrame = Math.min(2, this.nodes.length);
+        for (let i = 0; i < ticksPerFrame; i++) {
+            const node = this.nodes[(this._growthNodeIndex + i) % this.nodes.length];
+            node?.growthManager?.tick();
+        }
+        if (this.nodes.length > 0) {
+            this._growthNodeIndex = (this._growthNodeIndex + ticksPerFrame) % this.nodes.length;
+        }
+
         this.nodeGrid.clear();
         this.nodes.forEach(node => this._insertNodeIntoGrid(node));
     }
@@ -565,6 +577,7 @@ export class Simulation {
         if (this.sharedNodePool) this.sharedNodePool.totalFood = 0;
         this.totalFoodCollected = 0;
         this._updateAccumulator = 0;
+        this._growthNodeIndex = 0;
         this.updateStats();
         // Re-enable player's ability to drop the initial node after reset
         this.playerCanDropNodes = true;
@@ -577,15 +590,10 @@ export class Simulation {
      * Start the simulation game loop
      */
     start() {
-        let lastFrame = performance.now();
-        const gameLoop = (now) => {
+        const gameLoop = () => {
             try {
-                const elapsed = now - lastFrame;
-                if (elapsed >= 16) {
-                    lastFrame = now - (elapsed % 16);
-                    this.update();
-                    this.render();
-                }
+                this.update();
+                this.render();
             } catch (err) {
                 console.error('Simulation loop error:', err);
             }

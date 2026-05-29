@@ -235,15 +235,11 @@ export class Node {
      * Update node state
      */
     update() {
-        // Update size for compatibility (use largest dimension)
         const maxLength = this.growthManager.getMaxGrowthExtent();
-        this.size = CONFIG.NODE.SIZE + maxLength * 2; // *2 because growth can be in both directions
-        
+        this.size = CONFIG.NODE.SIZE + maxLength * 2;
         if (this.pulseAnimation > 0) {
             this.pulseAnimation -= 0.05;
         }
-        // Process deferred growth actions queued by the growth manager
-        if (this.growthManager && typeof this.growthManager.tick === 'function') this.growthManager.tick();
     }
 
     /**
