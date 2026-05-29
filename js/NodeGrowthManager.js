@@ -104,6 +104,11 @@ export class NodeGrowthManager {
 
     tick() {
         const cfg = this.node.simulation ? this.node.simulation.CONFIG : null;
+        const maxPixels = cfg?.NODE?.MAX_PIXELS ?? CONSTANTS.DEFAULT_MAX_PIXELS_PER_NODE;
+        if (this.node.pixels.length >= maxPixels && this._growthQueue.length === 0) {
+            return;
+        }
+
         const actionsPerFrame = (cfg && typeof cfg.GROWTH_ACTIONS_PER_FRAME === 'number') ? cfg.GROWTH_ACTIONS_PER_FRAME : 2;
         let processed = 0;
 

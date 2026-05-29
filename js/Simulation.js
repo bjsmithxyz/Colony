@@ -272,12 +272,11 @@ export class Simulation {
     }
 
     handleIndividualMovement(individual, prevX, prevY) {
-        // Mark dirty regions for movement
-        if (Math.abs(individual.x - prevX) > 0.1 || Math.abs(individual.y - prevY) > 0.1) {
-            this.dirtyRectManager.markEntityDirty(individual, prevX, prevY);
-            
-            const trailColor = individual.carrying > 0 ? 'rgba(255, 193, 7, 0.3)' : 'rgba(33, 150, 243, 0.3)';
-            this.trailSystem.addPoint(individual.x, individual.y, trailColor);
+        if (this.CONFIG.RENDER?.TRAILS_ENABLED !== false) {
+            if (Math.abs(individual.x - prevX) > 0.1 || Math.abs(individual.y - prevY) > 0.1) {
+                const trailColor = individual.carrying > 0 ? 'rgba(255, 193, 7, 0.3)' : 'rgba(33, 150, 243, 0.3)';
+                this.trailSystem.addPoint(individual.x, individual.y, trailColor);
+            }
         }
     }
 
@@ -443,7 +442,7 @@ export class Simulation {
     }
 
     generateFoodSources() {
-        const numSources = 20 + Math.floor(Math.random() * 15); // Increased to 20-35 sources
+        const numSources = 12 + Math.floor(Math.random() * 8);
         
         for (let i = 0; i < numSources; i++) {
             const x = Math.floor(Math.random() * (CONFIG.MAP.WIDTH - 40)) + 20;
@@ -578,15 +577,20 @@ export class Simulation {
      * Start the simulation game loop
      */
     start() {
-        const gameLoop = () => {
+        let lastFrame = performance.now();
+        const gameLoop = (now) => {
             try {
-                this.update();
-                this.render();
+                const elapsed = now - lastFrame;
+                if (elapsed >= 16) {
+                    lastFrame = now - (elapsed % 16);
+                    this.update();
+                    this.render();
+                }
             } catch (err) {
                 console.error('Simulation loop error:', err);
             }
             requestAnimationFrame(gameLoop);
         };
-        gameLoop();
+        requestAnimationFrame(gameLoop);
     }
 }

@@ -80,13 +80,35 @@ export class NodeRenderer {
      */
     renderNodeBody(ctx) {
         ctx.fillStyle = this.node.color;
-        
-        // For performance, batch adjacent pixels where possible
-        if (this.node.pixels.length > 50) {
-            this.renderWithImageData(ctx);
+        if (this.node.pixels.length > 24) {
+            this._renderCached(ctx);
         } else {
             this.renderWithFillRect(ctx);
         }
+    }
+
+    /** Cached offscreen blit — rebuilt only when pixels change, avoids bbox black boxes. */
+    _renderCached(ctx) {
+        const bounds = this.node.shapeGenerator.getBounds();
+        const width = Math.max(1, bounds.maxX - bounds.minX + 1);
+        const height = Math.max(1, bounds.maxY - bounds.minY + 1);
+
+        if (!this._cache || this._isDirty || this._cacheW !== width || this._cacheH !== height) {
+            if (!this._cache) this._cache = document.createElement('canvas');
+            this._cache.width = width;
+            this._cache.height = height;
+            const c = this._cache.getContext('2d');
+            c.clearRect(0, 0, width, height);
+            c.fillStyle = this.node.color;
+            for (const p of this.node.pixels) {
+                c.fillRect(p.dx - bounds.minX, p.dy - bounds.minY, 1, 1);
+            }
+            this._cacheW = width;
+            this._cacheH = height;
+            this._isDirty = false;
+        }
+
+        ctx.drawImage(this._cache, this.node.x + bounds.minX, this.node.y + bounds.minY);
     }
 
     // renderSharedPoolLabel removed
