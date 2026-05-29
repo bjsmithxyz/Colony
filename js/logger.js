@@ -14,7 +14,7 @@ export const logger = {
     },
     info(...args) {
         try {
-            if (CONFIG && CONFIG.DEBUG && CONFIG.DEBUG.startup) console.log(...args);
+            console.log(...args);
         } catch (e) {}
     },
     warn(...args) { console.warn(...args); },

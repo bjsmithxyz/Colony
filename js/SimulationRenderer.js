@@ -35,16 +35,17 @@ export class SimulationRenderer {
         this.lastRenderTime = now;
         
         // Check if dirty rect optimization is enabled
-        const dirtyRectEnabled = this.simulation.CONFIG && 
-                                 this.simulation.CONFIG.RENDER && 
+        const dirtyRectEnabled = this.simulation.CONFIG &&
+                                 this.simulation.CONFIG.RENDER &&
                                  this.simulation.CONFIG.RENDER.DIRTY_RECT_ENABLED;
         
-        // Get dirty rects
         const dirtyRects = this.simulation.dirtyRectManager.getDirtyRects();
         const hasDirtyRects = dirtyRects && dirtyRects.length > 0;
+        // Partial redraw is safe when paused (trails don't fade) or when trails are cleared
+        const canUseDirtyRects = dirtyRectEnabled && hasDirtyRects && !this.firstFrame &&
+            this.simulation.isPaused;
         
-        // Use dirty rect rendering if enabled and we have dirty regions (and not first frame)
-        if (dirtyRectEnabled && hasDirtyRects && !this.firstFrame) {
+        if (canUseDirtyRects) {
             // Fallback to full render if too many dirty regions (optimization not helping)
             const totalDirtyArea = dirtyRects.reduce((sum, rect) => sum + (rect.width * rect.height), 0);
             const canvasArea = this.simulation.CONFIG.MAP.WIDTH * this.simulation.CONFIG.MAP.HEIGHT;
@@ -104,95 +105,17 @@ export class SimulationRenderer {
     }
     
     renderDirtyRegions(dirtyRects) {
-        // Clear dirty regions first
         this.ctx.fillStyle = this.simulation.CONFIG.MAP.BACKGROUND_COLOR;
         for (const rect of dirtyRects) {
             this.ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
         }
-        
-        // Render the full trail system (it maintains its own canvas with proper fading)
-        // This ensures trails render correctly without flashing
+
         this.ctx.globalCompositeOperation = 'source-over';
-        this.simulation.trailSystem.render(this.ctx);
-        
-        // Collect all entities that intersect any dirty region (render once, not per-rect)
-        const entitiesToRender = new Set();
-        
         for (const rect of dirtyRects) {
-            // Find entities that intersect this dirty region
-            for (const food of this.simulation.foodSources) {
-                if (this.entityIntersectsRect(food, rect)) {
-                    entitiesToRender.add(food);
-                }
-            }
-            
-            for (const node of this.simulation.nodes) {
-                if (this.nodeIntersectsRect(node, rect)) {
-                    entitiesToRender.add(node);
-                }
-            }
-            
-            for (const individual of this.simulation.individuals) {
-                if (this.entityIntersectsRect(individual, rect)) {
-                    entitiesToRender.add(individual);
-                }
-            }
+            this.simulation.trailSystem.renderRegion(this.ctx, rect);
         }
-        
-        // Render all collected entities once
-        for (const entity of entitiesToRender) {
-            entity.render(this.ctx);
-        }
-    }
-    
-    renderEntitiesInRegion(rect) {
-        // Render food sources in region
-        for (const food of this.simulation.foodSources) {
-            if (this.entityIntersectsRect(food, rect)) {
-                food.render(this.ctx);
-            }
-        }
-        
-        // Render nodes in region
-        for (const node of this.simulation.nodes) {
-            if (this.entityIntersectsRect(node, rect)) {
-                node.render(this.ctx);
-            }
-        }
-        
-        // Render individuals in region
-        for (const individual of this.simulation.individuals) {
-            if (this.entityIntersectsRect(individual, rect)) {
-                individual.render(this.ctx);
-            }
-        }
-    }
-    
-    entityIntersectsRect(entity, rect) {
-        const entitySize = entity.size || 1;
-        const entityLeft = entity.x - entitySize;
-        const entityRight = entity.x + entitySize;
-        const entityTop = entity.y - entitySize;
-        const entityBottom = entity.y + entitySize;
-        
-        return !(entityRight < rect.x || 
-                entityLeft > rect.x + rect.width ||
-                entityBottom < rect.y || 
-                entityTop > rect.y + rect.height);
-    }
-    
-    nodeIntersectsRect(node, rect) {
-        // Nodes can be large, so check their bounding box
-        const bounds = node.getBounds();
-        const nodeLeft = node.x + bounds.minX;
-        const nodeRight = node.x + bounds.maxX;
-        const nodeTop = node.y + bounds.minY;
-        const nodeBottom = node.y + bounds.maxY;
-        
-        return !(nodeRight < rect.x || 
-                nodeLeft > rect.x + rect.width ||
-                nodeBottom < rect.y || 
-                nodeTop > rect.y + rect.height);
+
+        this.renderEntities();
     }
 
     addVisualEffect(x, y, type) {
@@ -295,36 +218,6 @@ export class SimulationRenderer {
                 memoryUsage: performance && performance.memory ? performance.memory.usedJSHeapSize : null
             };
             window.enhancedUI.updatePerformanceMetrics(performanceMetrics);
-        }
-    }
-
-    showLoadingScreen() {
-        const loadingScreen = document.getElementById('loadingScreen');
-        const progressBar = document.getElementById('loadingProgressBar');
-        
-        if (loadingScreen) {
-            loadingScreen.classList.remove('hidden');
-            
-            // Simulate loading progress
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += Math.random() * 20;
-                progressBar.style.width = Math.min(progress, 100) + '%';
-                
-                if (progress >= 100) {
-                    clearInterval(interval);
-                    setTimeout(() => {
-                        loadingScreen.classList.add('hidden');
-                    }, 500);
-                }
-            }, 100);
-        }
-    }
-
-    hideLoadingScreen() {
-        const loadingScreen = document.getElementById('loadingScreen');
-        if (loadingScreen) {
-            loadingScreen.classList.add('hidden');
         }
     }
 }

@@ -60,14 +60,15 @@ export class FoodSource {
     }
 
     deplete(amount) {
-        this.remainingFood -= amount;
-        this.amount = this.remainingFood; // Keep amount in sync
+        const depleted = Math.min(amount, this.remainingFood);
+        this.remainingFood -= depleted;
+        this.amount = this.remainingFood;
         if (this.remainingFood <= 0) {
             this.depleted = true;
             this.remainingFood = 0;
             this.amount = 0;
         }
-        return Math.min(amount, this.remainingFood + amount);
+        return depleted;
     }
     
     collect(requestedAmount) {

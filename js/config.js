@@ -1,39 +1,4 @@
-// Presets inlined here (previously in config-presets.js)
-const PRESETS = {
-    sparse: {
-        NODE: {
-            GROWTH_BRANCH_CHANCE: 0.06,
-            GROWTH_THICKNESS: 1,
-            GROWTH_RANDOM_DIR_CHANGE: 0.08,
-            BASE_GROWTH_CHANCE: 0.003
-        },
-        GROWTH_ACTIONS_PER_FRAME: 2,
-        GROWTH_STEP_PIXELS: 1,
-        GROWTH_CONTINUOUS: true
-    },
-    bushy: {
-        NODE: {
-            GROWTH_BRANCH_CHANCE: 0.62,
-            GROWTH_THICKNESS: 2,
-            GROWTH_RANDOM_DIR_CHANGE: 0.6,
-            BASE_GROWTH_CHANCE: 0.04
-        },
-        GROWTH_ACTIONS_PER_FRAME: 5,
-        GROWTH_STEP_PIXELS: 3,
-        GROWTH_CONTINUOUS: true
-    },
-    tendrils: {
-        NODE: {
-            GROWTH_BRANCH_CHANCE: 0.22,
-            GROWTH_THICKNESS: 1,
-            GROWTH_RANDOM_DIR_CHANGE: 0.32,
-            BASE_GROWTH_CHANCE: 0.02
-        },
-        GROWTH_ACTIONS_PER_FRAME: 3,
-        GROWTH_STEP_PIXELS: 2,
-        GROWTH_CONTINUOUS: true
-    }
-};
+import { PRESETS, getPreset } from './config-presets.js';
 
 export const CONFIG = {
     MAP: {
@@ -82,10 +47,8 @@ export const CONFIG = {
         INITIAL_ENERGY: 3000                // Starting energy when spawned
     },
     FOOD: {
-        TOTAL_PIXELS: 20,
         COLOR_HIDDEN: '#1a1a1a',
-        COLOR_REVEALED: '#FFC107',
-        DEPLETION_RATE: 2
+        COLOR_REVEALED: '#FFC107'
     },
     SIMULATION: {
         FPS: 60,
@@ -93,16 +56,12 @@ export const CONFIG = {
         INITIAL_IMMUNITY_ENABLED: true      // First individual is immune until finding food
     },
     TERRAIN: {
-        ENABLED: true,                      // Enable topographic terrain system
-        NOISE_SCALE: 0.01,                   // Scale of noise for terrain generation (lower = smoother)
-        OCTAVES: 3,                          // Number of noise octaves for detail
-        PERSISTENCE: 0.5,                    // Persistence between octaves
-        CONTOUR_ENABLED: true,               // Render contour lines
-        CONTOUR_INTERVAL: 20,                // Height interval between contour lines (0-255)
-        CONTOUR_COLOR: 'rgba(100, 100, 100, 0.3)', // Color of contour lines
-        CONTOUR_LINE_WIDTH: 1,               // Width of contour lines
-        ENERGY_MULTIPLIER: 2.0,              // Maximum energy cost multiplier for steep terrain
-        GROWTH_COST_MULTIPLIER: 1.5          // Maximum growth cost multiplier for steep terrain
+        ENABLED: true,
+        NOISE_SCALE: 0.01,
+        OCTAVES: 3,
+        PERSISTENCE: 0.5,
+        ENERGY_MULTIPLIER: 2.0,
+        GROWTH_COST_MULTIPLIER: 1.5
     }
 };
 
@@ -110,7 +69,7 @@ export const CONFIG = {
 CONFIG.RENDER = {
     OFFSCREEN_CANVAS_ENABLED: true,
     OFFSCREEN_CANVAS_SAVE_MEMORY: false,    // If true, reuse a single smaller canvas when possible
-    DIRTY_RECT_ENABLED: false,             // Use dirty rect optimization for partial redraws (experimental - can cause artifacts with trails)
+    DIRTY_RECT_ENABLED: true,              // Partial redraw when paused (trails fade globally while running)
     SILHOUETTE_BLUR_ENABLED: false,
     SILHOUETTE_BLUR_RADIUS: 6,
     MARCHING_SQUARES_ENABLED: false,
@@ -118,7 +77,7 @@ CONFIG.RENDER = {
 };
 
 // Apply default preset: 'tendrils' (merge shallowly for relevant keys)
-const defaultPreset = PRESETS.tendrils || {};
+const defaultPreset = getPreset('tendrils') || {};
 if (defaultPreset.NODE) {
     Object.assign(CONFIG.NODE, defaultPreset.NODE);
 }
@@ -126,15 +85,5 @@ for (const key of ['GROWTH_ACTIONS_PER_FRAME', 'GROWTH_STEP_PIXELS', 'GROWTH_CON
     if (defaultPreset[key] !== undefined) CONFIG[key] = defaultPreset[key];
 }
 
-// Freeze presets to discourage runtime mutation
-function deepFreeze(obj) {
-    if (!obj || typeof obj !== 'object') return obj;
-    Object.keys(obj).forEach((k) => {
-        if (obj[k] && typeof obj[k] === 'object') deepFreeze(obj[k]);
-    });
-    return Object.freeze(obj);
-}
-deepFreeze(PRESETS);
-
-export { PRESETS };
+export { PRESETS, getPreset };
 export default CONFIG;

@@ -26,6 +26,16 @@ export class TrailSystem {
         targetCtx.drawImage(this.canvas, 0, 0);
     }
 
+    /** Blit a subregion of the trail buffer onto the target context. */
+    renderRegion(targetCtx, rect) {
+        const x = Math.max(0, Math.floor(rect.x));
+        const y = Math.max(0, Math.floor(rect.y));
+        const w = Math.min(this.width - x, Math.ceil(rect.width));
+        const h = Math.min(this.height - y, Math.ceil(rect.height));
+        if (w <= 0 || h <= 0) return;
+        targetCtx.drawImage(this.canvas, x, y, w, h, x, y, w, h);
+    }
+
     clear() {
         this.ctx.clearRect(0, 0, this.width, this.height);
     }

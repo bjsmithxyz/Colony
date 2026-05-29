@@ -93,10 +93,10 @@ export class SpatialGrid {
                     const entity = cell[i];
                     const dx = entity.x - x;
                     const dy = entity.y - y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (distance <= radius) {
-                        results.push({ entity, distance });
+                    const distanceSq = dx * dx + dy * dy;
+
+                    if (distanceSq <= radius * radius) {
+                        results.push({ entity, distance: Math.sqrt(distanceSq) });
                     }
                 }
             }

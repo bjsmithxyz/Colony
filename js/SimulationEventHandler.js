@@ -68,9 +68,6 @@ export class SimulationEventHandler {
 
     }
 
-    setupModuleBridge() {
-        // No-op: module system removed
-    }
 
     setupTooltips() {
         // Mouse move for tooltips
@@ -128,9 +125,7 @@ export class SimulationEventHandler {
 
     showTooltip(x, y, node) {
         const individualCount = this.simulation.individuals.filter(ind => ind.parentNode === node).length;
-    let content = `Food: ${node.food}<br>Individuals: ${individualCount}`;
-        
-        this.tooltip.innerHTML = content;
+        this.tooltip.textContent = `Food: ${node.food}\nIndividuals: ${individualCount}`;
         this.tooltip.style.display = 'block';
         this.updateTooltipPosition(x, y);
     }

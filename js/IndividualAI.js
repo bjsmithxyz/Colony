@@ -240,11 +240,12 @@ export class IndividualAI {
         );
         
         for (const entity of nearbyIndividuals) {
-            if (entity.targetFood && entity !== this.individual && entity.targetFood.amount > 0) {
-                // Share known food source
-                if (!this.knownFoodSources.includes(entity.targetFood)) {
-                    this.knownFoodSources.push(entity.targetFood);
-                    return entity.targetFood;
+            if (entity === this.individual) continue;
+            const sharedTarget = entity.getTargetFood?.() ?? entity.ai?.targetFood;
+            if (sharedTarget && sharedTarget.amount > 0) {
+                if (!this.knownFoodSources.includes(sharedTarget)) {
+                    this.knownFoodSources.push(sharedTarget);
+                    return sharedTarget;
                 }
             }
         }

@@ -6,23 +6,22 @@
     box-sizing: border-box;
 }
 
-/* Centralized UI font variable (bundled Ubuntu) - used throughout the stylesheet */
+/* Centralized UI font — system stack (no bundled font files required) */
 :root {
-    --ui-font: 'Ubuntu', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --ui-font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
-/* Ensure common UI elements inherit the bundled Ubuntu font explicitly */
+/* Ensure common UI elements inherit the UI font */
 button, input, canvas, .tooltip, .control-card, .action-btn, .range-slider {
     font-family: var(--ui-font);
 }
 
-/* Enforce Ubuntu as the global font for all elements */
+/* Enforce UI font as the global font for all elements */
 html, body {
     font-family: var(--ui-font);
 }
 
 body {
-    /* Prefer bundled Ubuntu font then fall back */
     font-family: var(--ui-font);
     /* Pixel / stepped gradient from grey to black using repeating-linear-gradient */
     background: repeating-linear-gradient(180deg,
@@ -39,43 +38,6 @@ body {
     line-height: 1.5;
     overflow: hidden;
     font-size: 14px;
-}
-
-/* Local Ubuntu font-face fallbacks (bundled WOFF2 files) */
-/* font-face declarations left intentionally using the 'Ubuntu' family name so the
-    browser can match the face when 'Ubuntu' is requested. We centrally reference
-    the UI font via the --ui-font variable elsewhere. */
-
-/* Ensure preloaded fonts are actually used by defining font-face with matching
-   URLs and proper font-display. This prevents the browser from warning that
-   a preloaded font wasn't used. */
-@font-face {
-    font-family: 'Ubuntu';
-    src: url('/assets/fonts/ubuntu-300.woff2') format('woff2');
-    font-weight: 300;
-    font-style: normal;
-    font-display: swap;
-}
-@font-face {
-    font-family: 'Ubuntu';
-    src: url('/assets/fonts/ubuntu-400.woff2') format('woff2');
-    font-weight: 400;
-    font-style: normal;
-    font-display: swap;
-}
-@font-face {
-    font-family: 'Ubuntu';
-    src: url('/assets/fonts/ubuntu-500.woff2') format('woff2');
-    font-weight: 500;
-    font-style: normal;
-    font-display: swap;
-}
-@font-face {
-    font-family: 'Ubuntu';
-    src: url('/assets/fonts/ubuntu-700.woff2') format('woff2');
-    font-weight: 700;
-    font-style: normal;
-    font-display: swap;
 }
 
 /* ===== LOADING SCREEN ===== */
@@ -590,6 +552,7 @@ body {
     z-index: 1001;
     pointer-events: none;
     max-width: 250px;
+    white-space: pre-line;
 }
 
 @media (max-width: 768px) {

@@ -125,7 +125,7 @@ export class Node {
             }
         } catch (e) {}
         // update edgePixels: new pixel may create new frontier entries around it
-        const neigh = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
+        const neigh = CONSTANTS.NEIGHBOR_OFFSETS;
         let isEdge = false;
         for (const [ox, oy] of neigh) {
             const neighborKey = `${dx+ox},${dy+oy}`;
@@ -167,7 +167,7 @@ export class Node {
 
     _recomputeEdgePixels() {
         this.edgePixels.clear();
-        const neigh = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]];
+        const neigh = CONSTANTS.NEIGHBOR_OFFSETS;
         for (const p of this.pixels) {
             const key = `${p.dx},${p.dy}`;
             for (const [ox, oy] of neigh) {

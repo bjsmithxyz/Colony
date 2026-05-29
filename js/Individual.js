@@ -7,7 +7,10 @@ import { IndividualAI } from './IndividualAI.js';
  * Handles state and rendering, delegates AI to IndividualAI
  */
 export class Individual {
+    static _nextId = 1;
+
     constructor(parentNode) {
+        this.id = Individual._nextId++;
         this.parentNode = parentNode;
         this.initializeProperties();
         this.initializeAI();

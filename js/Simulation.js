@@ -99,10 +99,9 @@ export class Simulation {
         this.canvas.width = CONFIG.MAP.WIDTH;
         this.canvas.height = CONFIG.MAP.HEIGHT;
         this.ctx.imageSmoothingEnabled = false;
-        // Ensure any canvas text uses the bundled Ubuntu font by default
         try {
             this.ctx.textBaseline = 'top';
-            this.ctx.font = '14px Ubuntu';
+            this.ctx.font = '14px system-ui, sans-serif';
         } catch (e) {
             // some contexts may not support text settings in certain environments
         }
@@ -294,7 +293,7 @@ export class Simulation {
     addNode(x, y, opts = {}) {
         if (this.nodes.length >= CONFIG.NODE.MAX_NODES) {
             console.warn('Maximum nodes reached:', CONFIG.NODE.MAX_NODES);
-            return;
+            return null;
         }
         
         try {
@@ -413,6 +412,10 @@ export class Simulation {
                 this.nodes.splice(idx, 1);
             }
 
+            if (typeof absorbed.destroy === 'function') {
+                absorbed.destroy();
+            }
+
             // After absorption, ensure survivor recomputes its edge pixels and marks renderer dirty
             if (survivor && typeof survivor._recomputeEdgePixels === 'function') survivor._recomputeEdgePixels();
             if (survivor && typeof survivor.markRendererDirty === 'function') survivor.markRendererDirty();
@@ -484,7 +487,6 @@ export class Simulation {
      */
     selectTarget(target) {
         this.selectedTarget = target;
-        this.updateModuleUI();
     }
 
     /**
@@ -492,6 +494,7 @@ export class Simulation {
      */
     togglePause() {
         this.isPaused = !this.isPaused;
+        this.dirtyRectManager.markAllDirty();
     }
 
     /**
@@ -516,10 +519,6 @@ export class Simulation {
         if (ovInd) ovInd.textContent = this.individuals.length;
         if (ovFood) ovFood.textContent = totalFood;
         if (ovCollected) ovCollected.textContent = this.totalFoodCollected;
-    }
-
-    updateModuleUI() {
-        // No-op: module system removed
     }
 
     /**
@@ -558,19 +557,6 @@ export class Simulation {
         if (this._updateCanvasCursor) this._updateCanvasCursor();
         
         console.log('Simulation reset');
-    }
-
-    // Module integration methods (no-op: module system removed)
-    handleModuleAdded(moduleData) {
-        // No-op
-    }
-    
-    handleModuleRemoved(moduleData) {
-        // No-op
-    }
-    
-    getModuleClass(moduleType) {
-        return null;
     }
 
     /**

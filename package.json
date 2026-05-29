@@ -2,13 +2,11 @@
   "name": "colony-purgecss",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "devDependencies": {
     "purgecss": "^6.0.0"
   },
   "scripts": {
     "purge:css": "purgecss --css styles.css --content index.html js/**/*.js --output build/"
-  },
-  "dependencies": {
-    "d3-contour": "^4.0.2"
   }
 }

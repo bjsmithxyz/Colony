@@ -1,4 +1,5 @@
 import { CONSTANTS } from './constants.js';
+import { directionToAngle } from './utils.js';
 
 /**
  * TerrainMap - Generates and manages topographic terrain data
@@ -175,7 +176,7 @@ export class TerrainMap {
         
         // If direction provided, check if growing uphill
         if (direction) {
-            const angle = typeof direction === 'string' ? this._directionToAngle(direction) : direction;
+            const angle = typeof direction === 'string' ? directionToAngle(direction) : direction;
             const nextX = x + Math.cos(angle);
             const nextY = y + Math.sin(angle);
             const heightDiff = this.getHeight(nextX, nextY) - this.getHeight(x, y);
@@ -188,23 +189,6 @@ export class TerrainMap {
         }
         
         return Math.max(CONSTANTS.TERRAIN_MIN_GROWTH_COST, cost);
-    }
-
-    /**
-     * Convert direction string to angle
-     */
-    _directionToAngle(direction) {
-        const map = {
-            north: -Math.PI / 2,
-            northeast: -Math.PI / 4,
-            east: 0,
-            southeast: Math.PI / 4,
-            south: Math.PI / 2,
-            southwest: 3 * Math.PI / 4,
-            west: Math.PI,
-            northwest: -3 * Math.PI / 4
-        };
-        return map[direction] || 0;
     }
 
     /**
