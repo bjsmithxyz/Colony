@@ -306,6 +306,15 @@ export class Simulation {
             // Link node to shared pool so resources can be treated as shared
             node.sharedPool = this.sharedNodePool;
             this.nodes.push(node);
+            this._insertNodeIntoGrid(node);
+
+            const bounds = node.getBounds();
+            this.dirtyRectManager.markDirty(
+                Math.floor(x + bounds.minX),
+                Math.floor(y + bounds.minY),
+                Math.max(1, Math.ceil(bounds.maxX - bounds.minX + 1)),
+                Math.max(1, Math.ceil(bounds.maxY - bounds.minY + 1))
+            );
             
             // Create first individual if this is the first node
             if (this.nodes.length === 1) {
