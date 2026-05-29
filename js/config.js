@@ -17,7 +17,8 @@ export const CONFIG = {
         GROWTH_BRANCH_CHANCE: 0.32,         // Higher to encourage more branching
         GROWTH_THICKNESS: 1,                 // Slightly thinner dendrites for finer branching
         GROWTH_RANDOM_DIR_CHANGE: 0.35,     // Chance each growth step to pick a less-targeted direction (more meandering)
-        BASE_GROWTH_CHANCE: 0.02            // Small per-tick chance to grow a baseline pixel even when food is not available
+        BASE_GROWTH_CHANCE: 0.02,           // Small per-tick chance to grow when food is available above spawn reserve
+        MAX_PIXELS: 2500                    // Cap organic growth to prevent runaway render cost
     },
     // Allow a node to immediately spawn multiple individuals if it receives a large food deposit.
     // Disabled by default; use `DEBUG_FORCE_MULTI_SPAWN` to enable in debugging.
@@ -52,6 +53,7 @@ export const CONFIG = {
     },
     SIMULATION: {
         FPS: 60,
+        MAX_UPDATES_PER_FRAME: 4,           // Cap simulation steps per animation frame
         DROPPER_MILESTONE_INTERVAL: 150,    // Food collected milestone interval for dropper spawning
         INITIAL_IMMUNITY_ENABLED: true      // First individual is immune until finding food
     },

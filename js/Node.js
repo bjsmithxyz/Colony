@@ -88,6 +88,9 @@ export class Node {
     }
 
     addPixel(dx, dy) {
+        const maxPixels = this.simulation?.CONFIG?.NODE?.MAX_PIXELS ?? CONSTANTS.DEFAULT_MAX_PIXELS_PER_NODE;
+        if (this.pixels.length >= maxPixels) return false;
+
         // Check canvas boundaries before adding pixel
         const worldX = this.x + dx;
         const worldY = this.y + dy;

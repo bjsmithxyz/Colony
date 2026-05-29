@@ -25,7 +25,6 @@ export class SimulationRenderer {
         const now = performance.now();
         const deltaTime = now - this.lastRenderTime;
         
-        // Limit to target FPS
         const minFrameTime = CONSTANTS.MILLISECONDS_PER_SECOND / CONSTANTS.FRAME_RATE;
         if (deltaTime < minFrameTime) {
             return;

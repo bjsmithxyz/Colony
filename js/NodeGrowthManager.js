@@ -1,3 +1,4 @@
+import { CONSTANTS } from './constants.js';
 import { pickRandomDirection } from './growth/terrainWeights.js';
 import { growInDirection } from './growth/directionalGrowth.js';
 import { growTowardWorldPoint } from './growth/towardPointGrowth.js';
@@ -99,7 +100,9 @@ export class NodeGrowthManager {
         try {
             const nodeCfg = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
             const baseChance = (nodeCfg && typeof nodeCfg.BASE_GROWTH_CHANCE === 'number') ? nodeCfg.BASE_GROWTH_CHANCE : 0;
-            if (Math.random() < baseChance) {
+            const spawnReserve = (nodeCfg && typeof nodeCfg.SPAWN_THRESHOLD === 'number') ? nodeCfg.SPAWN_THRESHOLD : 0;
+            const hasGrowthFood = this.node.food > spawnReserve;
+            if (hasGrowthFood && Math.random() < baseChance) {
                 const dirs = Object.keys(this.growthDirections);
                 const dir = dirs[Math.floor(Math.random() * dirs.length)];
                 growInDirection(this, dir, 1);
@@ -135,6 +138,8 @@ export class NodeGrowthManager {
     _processContinuousGrowth(cfg, actionsPerFrame) {
         try {
             if (!cfg?.GROWTH_CONTINUOUS) return;
+            const maxPixels = this.node.simulation?.CONFIG?.NODE?.MAX_PIXELS ?? CONSTANTS.DEFAULT_MAX_PIXELS_PER_NODE;
+            if (this.node.pixels.length >= maxPixels) return;
 
             const nodeCfg = this.node.simulation ? this.node.simulation.CONFIG.NODE : null;
             const perPixel = (nodeCfg && nodeCfg.FOOD_PER_PIXEL) ? nodeCfg.FOOD_PER_PIXEL : 1;

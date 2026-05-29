@@ -56,18 +56,27 @@ export class NodeShapeGenerator {
     getClosestPixelTo(x, y) {
         let closestPixel = null;
         let minDistance = Infinity;
-        
-        for (const pixel of this.node.pixels) {
+
+        const candidates = this.node.edgePixels?.size > 0
+            ? Array.from(this.node.edgePixels, key => {
+                const [dx, dy] = key.split(',').map(Number);
+                return { dx, dy };
+            })
+            : this.node.pixels;
+
+        for (const pixel of candidates) {
             const px = this.node.x + pixel.dx;
             const py = this.node.y + pixel.dy;
-            const distance = Math.sqrt((x - px) ** 2 + (y - py) ** 2);
-            
-            if (distance < minDistance) {
-                minDistance = distance;
-                closestPixel = { x: px, y: py, pixel: pixel };
+            const dx = x - px;
+            const dy = y - py;
+            const distanceSq = dx * dx + dy * dy;
+
+            if (distanceSq < minDistance) {
+                minDistance = distanceSq;
+                closestPixel = { x: px, y: py, pixel };
             }
         }
-        
+
         return closestPixel;
     }
 

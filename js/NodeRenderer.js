@@ -276,41 +276,31 @@ export class NodeRenderer {
 
         const offCtx = this._offscreen.getContext('2d');
 
-        // compute checksum and decide whether to rebuild
-        const checksum = this._computePixelChecksum();
-        if (checksum !== this._lastPixelChecksum) this._isDirty = true;
-
-        // rebuild offscreen if dirty
         if (this._isDirty) {
+            const checksum = this._computePixelChecksum();
             offCtx.clearRect(0, 0, this._offscreen.width, this._offscreen.height);
 
-            // draw pixels into offscreen (offset by margin and node position)
             offCtx.fillStyle = this.node.color;
-            const ox = margin + (0 - bounds.minX);
-            const oy = margin + (0 - bounds.minY);
+            const ox = this._offscreenBounds.margin + (0 - bounds.minX);
+            const oy = this._offscreenBounds.margin + (0 - bounds.minY);
             for (const p of this.node.pixels) {
                 offCtx.fillRect(ox + p.dx, oy + p.dy, 1, 1);
             }
 
-            // apply silhouette blur if enabled
             if (cfg.SILHOUETTE_BLUR_ENABLED && typeof offCtx.filter !== 'undefined') {
                 const r = cfg.SILHOUETTE_BLUR_RADIUS || 6;
-                // create a temporary canvas to copy and blur
                 const tmp = document.createElement('canvas');
                 tmp.width = this._offscreen.width;
                 tmp.height = this._offscreen.height;
                 const tctx = tmp.getContext('2d');
                 tctx.fillStyle = this.node.color;
-                tctx.fillRect(0,0,tmp.width,tmp.height);
-                // draw the alpha mask then blur
-                const mask = offCtx.getImageData(0,0,this._offscreen.width,this._offscreen.height);
-                // clear and draw mask to tmp
-                tctx.clearRect(0,0,tmp.width,tmp.height);
+                tctx.fillRect(0, 0, tmp.width, tmp.height);
+                const mask = offCtx.getImageData(0, 0, this._offscreen.width, this._offscreen.height);
+                tctx.clearRect(0, 0, tmp.width, tmp.height);
                 tctx.putImageData(mask, 0, 0);
                 tctx.filter = `blur(${r}px)`;
-                const blurred = tctx.getImageData(0,0,tmp.width,tmp.height);
-                // clear offCtx and draw blurred result tinted by node color
-                offCtx.clearRect(0,0,this._offscreen.width,this._offscreen.height);
+                const blurred = tctx.getImageData(0, 0, tmp.width, tmp.height);
+                offCtx.clearRect(0, 0, this._offscreen.width, this._offscreen.height);
                 offCtx.putImageData(blurred, 0, 0);
             }
 

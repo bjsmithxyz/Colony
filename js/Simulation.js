@@ -45,6 +45,7 @@ export class Simulation {
 
         // Player controls: allow one manual drop only (initially true)
         this.playerCanDropNodes = true;
+        this._updateAccumulator = 0;
         // Ensure cursor matches state
         this._updateCanvasCursor = () => {
             try {
@@ -146,16 +147,13 @@ export class Simulation {
         if (this.isPaused) return;
         
         const updateStart = performance.now();
+        const maxSteps = CONFIG.SIMULATION?.MAX_UPDATES_PER_FRAME ?? CONSTANTS.MAX_UPDATES_PER_FRAME;
         
-        // Apply speed multiplier
-        const updates = Math.floor(this.simulationSpeed);
-        const fractionalUpdate = this.simulationSpeed - updates;
+        this._updateAccumulator += this.simulationSpeed;
+        let updates = Math.min(maxSteps, Math.floor(this._updateAccumulator));
+        this._updateAccumulator -= updates;
         
         for (let u = 0; u < updates; u++) {
-            this.performUpdate();
-        }
-        
-        if (fractionalUpdate > 0 && Math.random() < fractionalUpdate) {
             this.performUpdate();
         }
         
@@ -189,20 +187,26 @@ export class Simulation {
     }
 
     updateNodes() {
-        this.nodes.forEach(node => {
-            node.update();
-            // Insert node into nodeGrid using its bounds
-            try {
-                const b = node.getBounds();
-                const box = {
-                    minX: Math.floor(node.x + b.minX),
-                    minY: Math.floor(node.y + b.minY),
-                    maxX: Math.floor(node.x + b.maxX),
-                    maxY: Math.floor(node.y + b.maxY)
-                };
-                this.nodeGrid.insertBox(node, box);
-            } catch (e) {}
-        });
+        // Pre-populate grid so merge detection during growth sees other nodes
+        this.nodes.forEach(node => this._insertNodeIntoGrid(node));
+
+        this.nodes.forEach(node => node.update());
+
+        // Refresh grid with post-growth bounds for hit testing
+        this.nodeGrid.clear();
+        this.nodes.forEach(node => this._insertNodeIntoGrid(node));
+    }
+
+    _insertNodeIntoGrid(node) {
+        try {
+            const b = node.getBounds();
+            this.nodeGrid.insertBox(node, {
+                minX: Math.floor(node.x + b.minX),
+                minY: Math.floor(node.y + b.minY),
+                maxX: Math.floor(node.x + b.maxX),
+                maxY: Math.floor(node.y + b.maxY)
+            });
+        } catch (e) {}
     }
 
     updateIndividuals() {
@@ -551,6 +555,7 @@ export class Simulation {
         // Reset shared pool and counters
         if (this.sharedNodePool) this.sharedNodePool.totalFood = 0;
         this.totalFoodCollected = 0;
+        this._updateAccumulator = 0;
         this.updateStats();
         // Re-enable player's ability to drop the initial node after reset
         this.playerCanDropNodes = true;
