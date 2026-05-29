@@ -133,12 +133,6 @@ export class Node {
         if (!deferMaintenance) {
             this._updateEdgePixelsFor(dx, dy);
             this.markRendererDirty();
-            if (this.simulation?.dirtyRectManager) {
-                const trailsOff = this.simulation.CONFIG?.RENDER?.TRAILS_ENABLED === false;
-                if (this.simulation.isPaused || trailsOff) {
-                    this.simulation.dirtyRectManager.markDirty(worldX, worldY, 1, 1);
-                }
-            }
         } else {
             this._pixelMaintenancePending = true;
         }

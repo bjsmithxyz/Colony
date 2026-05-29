@@ -203,7 +203,7 @@ body {
     border: 2px solid rgba(255, 255, 255, 1);
     image-rendering: pixelated;
     border-radius: 0; /* square corners */
-    background: #000000;
+    background: #1a1a1a;
     cursor: crosshair;
     transition: all 0.08s linear;
 }

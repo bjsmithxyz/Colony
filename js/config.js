@@ -25,7 +25,8 @@ export const CONFIG = {
     GROWTH_ACTIONS_PER_FRAME: 1,
     GROWTH_STEP_PIXELS: 1,
     GROWTH_CONTINUOUS: false,
-    GROWTH_QUEUE_MAX_SIZE: 50,
+    GROWTH_QUEUE_MAX_SIZE: 20,
+    MAX_GROWTH_PER_TICK: 2,
     DEBUG: {
         startup: false,
         performance: false,
@@ -100,6 +101,9 @@ export function applyPerformanceLocks() {
     CONFIG.RENDER.OFFSCREEN_CANVAS_ENABLED = false;
     CONFIG.RENDER.TRAILS_ENABLED = false;
     CONFIG.TERRAIN.ENABLED = false;
+    CONFIG.MAX_GROWTH_PER_TICK = 2;
+    CONFIG.GROWTH_QUEUE_MAX_SIZE = 20;
+    CONFIG.NODE.GROWTH_BRANCH_CHANCE = 0.12;
 }
 
 applyPerformanceLocks();

@@ -32,10 +32,9 @@ export class SimulationRenderer {
         
         const dirtyRects = this.simulation.dirtyRectManager.getDirtyRects();
         const hasDirtyRects = dirtyRects && dirtyRects.length > 0;
-        // Partial redraw when paused, or when trails are off (no global fade each frame)
-        const trailsEnabled = this.simulation.CONFIG?.RENDER?.TRAILS_ENABLED !== false;
+        // Partial redraw only when paused — active sim uses full render to avoid 64px cell artifacts
         const canUseDirtyRects = dirtyRectEnabled && hasDirtyRects && !this.firstFrame &&
-            (this.simulation.isPaused || !trailsEnabled);
+            this.simulation.isPaused;
         
         if (canUseDirtyRects) {
             // Fallback to full render if too many dirty regions (optimization not helping)
@@ -49,6 +48,7 @@ export class SimulationRenderer {
             } else {
                 this.renderDirtyRegions(dirtyRects);
             }
+            this.firstFrame = false;
         } else {
             // Full render on first frame or when dirty rects disabled/empty
             this.renderFull();

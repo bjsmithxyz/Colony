@@ -48,8 +48,9 @@ export class NodeGrowthManager {
         let delta = Math.max(0, newPixels - oldPixels);
 
         try {
-            if (this._dbg()) console.log('processGrowth computed', { nodeX: this.node.x, nodeY: this.node.y, amount, oldPixels, newPixels, delta });
-            else console.debug?.('processGrowth', { x: this.node.x, y: this.node.y, amount, oldPixels, newPixels, delta });
+            if (this._dbg()) {
+                console.log('processGrowth computed', { nodeX: this.node.x, nodeY: this.node.y, amount, oldPixels, newPixels, delta });
+            }
         } catch (e) {}
 
         const topCfg = this.node.simulation ? this.node.simulation.CONFIG : null;
@@ -59,17 +60,25 @@ export class NodeGrowthManager {
         const continuous = topCfg && topCfg.GROWTH_CONTINUOUS;
         this._updateMaxQueueSize();
 
+        if (depositLocation) {
+            if (this._growthQueue.length < this._maxQueueSize) {
+                const last = this._growthQueue[this._growthQueue.length - 1];
+                const sameTarget = last?.type === 'toward'
+                    && last.point?.x === depositLocation.x
+                    && last.point?.y === depositLocation.y;
+                if (!sameTarget) {
+                    this._growthQueue.push({ type: 'toward', point: depositLocation });
+                    this._reservedPixels++;
+                    if (this._dbg()) console.log('Enqueued toward growth', this.node.x, this.node.y, depositLocation);
+                }
+            }
+            return;
+        }
+
         for (let i = 0; i < delta; i++) {
             if (this._growthQueue.length >= this._maxQueueSize) {
                 if (this._dbg()) console.warn('Growth queue full, dropping growth action', this.node.x, this.node.y);
                 break;
-            }
-
-            if (depositLocation) {
-                this._growthQueue.push({ type: 'toward', point: depositLocation });
-                if (this._dbg()) console.log('Enqueued toward growth', this.node.x, this.node.y, depositLocation);
-                this._reservedPixels++;
-                continue;
             }
 
             if (sourceDirection) {
@@ -111,9 +120,8 @@ export class NodeGrowthManager {
         } catch (e) {}
 
         try {
-            if (this._growthQueue.length > 0) {
-                if (this._dbg()) console.log('tick starting with queue', this._growthQueue.length, 'actionsPerFrame', actionsPerFrame, 'node', this.node.x, this.node.y);
-                else console.debug?.('tick queue', this._growthQueue.length, 'apf', actionsPerFrame, 'node', this.node.x, this.node.y);
+            if (this._dbg() && this._growthQueue.length > 0) {
+                console.log('tick starting with queue', this._growthQueue.length, 'actionsPerFrame', actionsPerFrame, 'node', this.node.x, this.node.y);
             }
         } catch (e) {}
 

@@ -48,16 +48,10 @@ export function growTowardWorldPoint(manager, worldPoint) {
         sy = ny;
     }
 
-    try {
-        if (manager._dbg()) {
-            console.log('growTowardWorldPoint', 'node', node.x, node.y, 'start', startPixel.dx, startPixel.dy, 'target', relX, relY, 'pathLen', path.length, 'path', path);
-        } else {
-            console.debug?.('growTowardWorldPoint', 'start', startPixel.dx, startPixel.dy, 'target', relX, relY, 'pathLen', path.length);
-        }
-    } catch (e) {}
-
     if (path.length === 0) {
+        if (node.hasPixel(relX, relY)) return;
         growTowardFallback(manager, relX, relY);
+        return;
     }
 
     const thickness = (node.simulation && node.simulation.CONFIG.NODE.GROWTH_THICKNESS) || 1;
