@@ -116,7 +116,11 @@ export class Simulation {
 
     initializeSystemsAndManagers() {
         // Core systems
-        this.trailSystem = new TrailSystem(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT);
+        this.trailSystem = new TrailSystem(
+            CONFIG.MAP.WIDTH,
+            CONFIG.MAP.HEIGHT,
+            CONFIG.RENDER?.TRAILS_ENABLED !== false
+        );
         this.spatialGrid = new SpatialGrid(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, CONSTANTS.DEFAULT_CELL_SIZE);
         // Separate grid for nodes where we insert node bounding boxes for faster pixel collision checks
         this.nodeGrid = new SpatialGrid(CONFIG.MAP.WIDTH, CONFIG.MAP.HEIGHT, CONSTANTS.NODE_GRID_CELL_SIZE);
@@ -169,9 +173,8 @@ export class Simulation {
     performUpdate() {
         this.frameCount++;
         
-        // Clear and rebuild spatial grid
+        // Clear and rebuild spatial grid (node grid rebuilt in updateNodes)
         this.spatialGrid.clear();
-        this.nodeGrid.clear();
         
         // Update entities
         this.updateNodes();
@@ -567,11 +570,14 @@ export class Simulation {
      */
     start() {
         const gameLoop = () => {
-            this.update();
-            this.render();
+            try {
+                this.update();
+                this.render();
+            } catch (err) {
+                console.error('Simulation loop error:', err);
+            }
             requestAnimationFrame(gameLoop);
         };
-        
         gameLoop();
     }
 }

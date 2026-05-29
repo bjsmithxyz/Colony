@@ -1,4 +1,4 @@
-import CONFIG, { PRESETS } from './config.js';
+import CONFIG, { PRESETS, applyPerformanceLocks } from './config.js';
 
 /**
  * ConfigUI — small panel to view and edit configuration values at runtime.
@@ -325,6 +325,8 @@ export class ConfigUI {
                 CONFIG[k] = preset[k];
             }
         });
+
+        applyPerformanceLocks();
 
         // Rebuild panel to reflect new values (simple approach)
         const body = document.getElementById('configBody');

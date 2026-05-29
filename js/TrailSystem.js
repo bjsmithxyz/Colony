@@ -1,7 +1,8 @@
 export class TrailSystem {
-    constructor(width, height) {
+    constructor(width, height, enabled = true) {
         this.width = width;
         this.height = height;
+        this.enabled = enabled;
         this.canvas = document.createElement('canvas');
         this.canvas.width = width;
         this.canvas.height = height;
@@ -11,11 +12,13 @@ export class TrailSystem {
     }
 
     addPoint(x, y, color) {
+        if (!this.enabled) return;
         this.ctx.fillStyle = color;
         this.ctx.fillRect(Math.floor(x), Math.floor(y), 1, 1);
     }
 
     update() {
+        if (!this.enabled) return;
         this.ctx.globalCompositeOperation = 'destination-out';
         this.ctx.fillStyle = `rgba(0, 0, 0, ${1 - this.fadeRate})`;
         this.ctx.fillRect(0, 0, this.width, this.height);
@@ -23,11 +26,12 @@ export class TrailSystem {
     }
 
     render(targetCtx) {
+        if (!this.enabled) return;
         targetCtx.drawImage(this.canvas, 0, 0);
     }
 
-    /** Blit a subregion of the trail buffer onto the target context. */
     renderRegion(targetCtx, rect) {
+        if (!this.enabled) return;
         const x = Math.max(0, Math.floor(rect.x));
         const y = Math.max(0, Math.floor(rect.y));
         const w = Math.min(this.width - x, Math.ceil(rect.width));

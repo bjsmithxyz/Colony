@@ -32,9 +32,10 @@ export class SimulationRenderer {
         
         const dirtyRects = this.simulation.dirtyRectManager.getDirtyRects();
         const hasDirtyRects = dirtyRects && dirtyRects.length > 0;
-        // Partial redraw is safe when paused (trails don't fade) or when trails are cleared
+        // Partial redraw when paused, or when trails are off (no global fade each frame)
+        const trailsEnabled = this.simulation.CONFIG?.RENDER?.TRAILS_ENABLED !== false;
         const canUseDirtyRects = dirtyRectEnabled && hasDirtyRects && !this.firstFrame &&
-            this.simulation.isPaused;
+            (this.simulation.isPaused || !trailsEnabled);
         
         if (canUseDirtyRects) {
             // Fallback to full render if too many dirty regions (optimization not helping)

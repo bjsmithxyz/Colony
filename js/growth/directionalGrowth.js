@@ -1,7 +1,6 @@
 import { CONSTANTS } from '../constants.js';
 import { directionToAngle } from '../utils.js';
-import { addPixelAndCheckMerge, addPixelIfMissing, chooseEdgePixelTowards } from './pixelOps.js';
-import { checkForMerge } from './mergeDetection.js';
+import { addPixelAndCheckMerge, addPixelIfMissing, chooseEdgePixelTowards, queueMergeCheck } from './pixelOps.js';
 
 export function growInDirection(manager, direction, pixels) {
     const { node, growthDirections } = manager;
@@ -154,7 +153,7 @@ export function addSupportPixels(manager, direction, count) {
         if (!node.hasPixel(supportPixel.dx, supportPixel.dy)) {
             if (node.addPixel(supportPixel.dx, supportPixel.dy, { deferMaintenance: true })) {
                 supportAdded++;
-                checkForMerge(manager, supportPixel.dx, supportPixel.dy);
+                queueMergeCheck(manager, supportPixel.dx, supportPixel.dy);
             }
         }
     }

@@ -82,7 +82,7 @@ export class NodeRenderer {
         ctx.fillStyle = this.node.color;
         
         // For performance, batch adjacent pixels where possible
-        if (this.node.pixels.length > 100) {
+        if (this.pixels.length > 50) {
             this.renderWithImageData(ctx);
         } else {
             this.renderWithFillRect(ctx);

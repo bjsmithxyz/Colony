@@ -11,7 +11,7 @@ export class SpatialGrid {
 
     clear() {
         for (let i = 0; i < this.grid.length; i++) {
-            this.grid[i] = [];
+            this.grid[i].length = 0;
         }
     }
 

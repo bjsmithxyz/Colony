@@ -2,6 +2,7 @@ import { CONSTANTS } from './constants.js';
 import { pickRandomDirection } from './growth/terrainWeights.js';
 import { growInDirection } from './growth/directionalGrowth.js';
 import { growTowardWorldPoint } from './growth/towardPointGrowth.js';
+import { flushPendingMerges } from './growth/pixelOps.js';
 
 /**
  * Node Growth Manager — orchestrates queue processing and delegates growth logic
@@ -136,6 +137,7 @@ export class NodeGrowthManager {
         if (typeof this.node.finalizePixelMaintenance === 'function') {
             this.node.finalizePixelMaintenance();
         }
+        flushPendingMerges(this);
     }
 
     _processContinuousGrowth(cfg, actionsPerFrame) {

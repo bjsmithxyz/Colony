@@ -1,13 +1,22 @@
 import { checkForMerge } from './mergeDetection.js';
 
+export function queueMergeCheck(manager, dx, dy) {
+    if (!manager._pendingMerges) manager._pendingMerges = [];
+    manager._pendingMerges.push({ dx, dy });
+}
+
+export function flushPendingMerges(manager) {
+    if (!manager._pendingMerges?.length) return;
+    const pending = manager._pendingMerges;
+    manager._pendingMerges = [];
+    for (const { dx, dy } of pending) {
+        if (checkForMerge(manager, dx, dy)) break;
+    }
+}
+
 export function addPixelIfMissing(manager, dx, dy) {
     const { node } = manager;
     if (node && typeof node.addPixel === 'function') {
-        try {
-            if (manager._dbg()) {
-                console.log('Attempt addPixel', node.x, node.y, dx, dy);
-            }
-        } catch (e) {}
         return node.addPixel(dx, dy, { deferMaintenance: true });
     }
 
@@ -18,7 +27,7 @@ export function addPixelIfMissing(manager, dx, dy) {
 
 export function addPixelAndCheckMerge(manager, dx, dy) {
     if (addPixelIfMissing(manager, dx, dy)) {
-        checkForMerge(manager, dx, dy);
+        queueMergeCheck(manager, dx, dy);
         return true;
     }
     return false;
